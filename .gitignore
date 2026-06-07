@@ -1,0 +1,17 @@
+vendor/
+node_modules/
+.phpunit.cache/
+.env
+.env.local
+*.log
+dist/
+build/
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
+composer.phar
+~$*
+*.tmp

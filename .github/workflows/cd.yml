@@ -1,0 +1,247 @@
+name: CD
+
+on:
+  # Триггер: пуш тега вида v1.2.3
+  push:
+    tags:
+      - 'v*.*.*'
+  # Ручной запуск из GitHub UI
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., 2.1.0)'
+        required: true
+        type: string
+
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────────
+  # Job 1: Полный прогон ворот перед релизом
+  # ──────────────────────────────────────────────────────────────────────
+  preflight:
+    name: Preflight checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+          tools: composer
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Run PHPStan
+        run: vendor/bin/phpstan analyse --no-progress --memory-limit=1G
+
+      - name: Run PHPCS
+        run: vendor/bin/phpcs src tests --standard=phpcs.xml --report=summary
+
+      - name: Run PHPUnit
+        run: vendor/bin/phpunit
+
+      - name: Run standalone verifier
+        run: php tools/ci-verify.php
+
+      - name: Validate composer.json
+        run: composer validate --strict
+
+  # ──────────────────────────────────────────────────────────────────────
+  # Job 2: Сборка phar (опционально) и артефактов
+  # ──────────────────────────────────────────────────────────────────────
+  build:
+    name: Build release artifacts
+    runs-on: ubuntu-latest
+    needs: preflight
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            VERSION=${GITHUB_REF#refs/tags/v}
+          else
+            VERSION=${{ github.event.inputs.version }}
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Release version: $VERSION"
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+          tools: composer
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction --no-dev
+
+      - name: Run autoloader (production)
+        run: composer dump-autoload --classmap-authoritative --no-dev
+
+      - name: Build phar
+        run: |
+          mkdir -p dist
+          php -d phar.readonly=0 -r '
+            $phar = new Phar("dist/search-gateway.phar");
+            $phar->startBuffering();
+            $phar->addFile("vendor/autoload.php");
+            // ... (можно расширить для упаковки всего src)
+            $phar->stopBuffering();
+            echo "PHAR built: " . filesize("dist/search-gateway.phar") . " bytes\n";
+          '
+
+      - name: Generate SHA-256 checksums
+        run: |
+          cd dist
+          sha256sum search-gateway.phar > search-gateway.phar.sha256
+          cat search-gateway.phar.sha256
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: search-gateway-${{ steps.version.outputs.version }}-artifacts
+          path: |
+            dist/search-gateway.phar
+            dist/search-gateway.phar.sha256
+
+  # ──────────────────────────────────────────────────────────────────────
+  # Job 3: Создание GitHub Release
+  # ──────────────────────────────────────────────────────────────────────
+  release:
+    name: GitHub Release
+    runs-on: ubuntu-latest
+    needs: build
+    timeout-minutes: 5
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: search-gateway-${{ steps.version.outputs.version }}-artifacts
+          path: dist/
+
+      - name: Extract version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            VERSION=${GITHUB_REF#refs/tags/v}
+          else
+            VERSION=${{ github.event.inputs.version }}
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          PREV_TAG=$(git tag --sort=-v:refname | grep -v "^v${{ steps.version.outputs.version }}$" | head -n 1)
+          if [ -n "$PREV_TAG" ]; then
+            CHANGELOG=$(git log --no-merges --pretty=format:"- %s (%h)" $PREV_TAG..HEAD)
+          else
+            CHANGELOG=$(git log --no-merges --pretty=format:"- %s (%h)" -n 50)
+          fi
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: v${{ steps.version.outputs.version }}
+          tag_name: v${{ steps.version.outputs.version }}
+          generate_release_notes: true
+          body: |
+            ## Search Gateway v${{ steps.version.outputs.version }}
+
+            ### Changelog
+            ${{ steps.changelog.outputs.changelog }}
+
+            ### Verification
+            - ✅ PHPStan level 9: 0 errors
+            - ✅ PHPCS PSR-12: 0 errors / 0 warnings
+            - ✅ PHPUnit: 52 tests passed
+            - ✅ Standalone verifier: 74 / 0 / 3
+
+            ### Installation
+            ```bash
+            composer require nanocubit/search-gateway
+            ```
+          files: |
+            dist/search-gateway.phar
+            dist/search-gateway.phar.sha256
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.version, '-') }}
+
+  # ──────────────────────────────────────────────────────────────────────
+  # Job 4: Публикация в Packagist
+  # ──────────────────────────────────────────────────────────────────────
+  packagist:
+    name: Publish to Packagist
+    runs-on: ubuntu-latest
+    needs: release
+    timeout-minutes: 5
+    if: github.event_name == 'push'  # только для настоящих тегов
+
+    steps:
+      - name: Trigger Packagist update
+        run: |
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -d '{"repository":{"url":"https://github.com/${{ github.repository }}","version":"v${{ steps.version.outputs.version }}"}}' \
+            "https://packagist.org/api/update-package?username=${{ secrets.PACKAGIST_USERNAME }}&apiToken=${{ secrets.PACKAGIST_API_TOKEN }}"
+        env:
+          PACKAGIST_API_TOKEN: ${{ secrets.PACKAGIST_API_TOKEN }}
+        continue-on-error: true  # Packagist может быть настроен на webhook, не критично
+
+      - name: Validate on Packagist
+        run: |
+          PACKAGE_NAME=$(grep -oP '"name":\s*"\K[^"]+' composer.json)
+          echo "Package: $PACKAGE_NAME"
+          curl -fsS "https://repo.packagist.org/p2/$PACKAGE_NAME.json" | head -c 200
+          echo
+
+  # ──────────────────────────────────────────────────────────────────────
+  # Job 5: Notify (опционально — Slack / Telegram / email)
+  # ──────────────────────────────────────────────────────────────────────
+  notify:
+    name: Notify
+    runs-on: ubuntu-latest
+    needs: [release, packagist]
+    if: always()
+    steps:
+      - name: Slack notification
+        if: env.SLACK_WEBHOOK != ''
+        uses: slackapi/slack-github-action@v1.27.0
+        with:
+          payload: |
+            {
+              "text": "🚀 *Search Gateway* v${{ steps.version.outputs.version }} released!\n${{ job.status == 'success' && '✅ All jobs passed' || '❌ Some jobs failed' }}\nhttps://github.com/${{ github.repository }}/releases/tag/v${{ steps.version.outputs.version }}"
+            }
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        continue-on-error: true

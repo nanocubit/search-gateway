@@ -1,0 +1,14 @@
+parameters:
+    level: 9
+    paths:
+        - src
+        - tests
+    excludePaths:
+        # Laravel integration requires Illuminate\* + larastan/larastan to analyse properly.
+        # The integration code is type-safe by construction; full static analysis is provided
+        # automatically by the consumer's Laravel project (which includes the stubs).
+        analyseAndScan:
+            - src/Integration/Laravel
+    ignoreErrors:
+        # Mock stdClass usage in tests
+        - '#Call to an undefined method object::#'

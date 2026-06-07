@@ -1,0 +1,49 @@
+{
+    "name": "nanocubit/search-gateway",
+    "description": "AI-oriented search engine layer with multi-provider support (Yandex, Brave, Perplexity, Bing)",
+    "type": "library",
+    "license": "MIT",
+    "authors": [{"name": "Architect", "email": "architect@example.com"}],
+    "require": {
+        "php": ">=8.2",
+        "psr/http-message": "^1.1 || ^2.0",
+        "psr/http-server-handler": "^1.0",
+        "psr/log": "^3.0",
+        "psr/simple-cache": "^3.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.0",
+        "phpstan/phpstan": "^1.10",
+        "squizlabs/php_codesniffer": "^3.9",
+        "guzzlehttp/guzzle": "^7.0",
+        "guzzlehttp/psr7": "^2.0",
+        "nyholm/psr7": "^1.8",
+        "nyholm/psr7-server": "^1.1",
+        "predis/predis": "^2.0",
+        "psr/http-server-middleware": "^1.0"
+    },
+    "suggest": {
+        "guzzlehttp/guzzle": "Required for GuzzleConcurrentHttpClient and Ollama streaming (^7.0)",
+        "guzzlehttp/psr7": "Required for GuzzleConcurrentHttpClient and Ollama streaming (^2.0)",
+        "nyholm/psr7": "Recommended PSR-7 implementation for testing HTTP controllers (^1.8)",
+        "nyholm/psr7-server": "Recommended PSR-7/PSR-15 server helper for testing (^1.1)",
+        "predis/predis": "Required for PredisRedisClientAdapter (^2.0)",
+        "ext-redis": "Required for PhpRedisClientAdapter"
+    },
+    "autoload": {
+        "psr-4": {
+            "SearchGateway\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "SearchGateway\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit",
+        "analyse": "phpstan analyse src tests --level=9 -c phpstan.neon",
+        "style": "phpcs src tests --standard=phpcs.xml",
+        "fix": "phpcbf src tests --standard=phpcs.xml"
+    }
+}

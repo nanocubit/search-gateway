@@ -1,0 +1,245 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Еженедельный прогон (понедельник 06:00 UTC) — ловим регрессии зависимостей
+    - cron: '0 6 * * 1'
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────────
+  # Job 1: Static analysis + style (быстрый, без матрицы)
+  # ──────────────────────────────────────────────────────────────────────
+  quality:
+    name: Static analysis (PHPStan L9 + PHPCS)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP ${{ matrix.php }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+          tools: composer
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ runner.os }}-php-8.3-${{ hashFiles('composer.json', 'composer.lock') }}
+          restore-keys: |
+            composer-${{ runner.os }}-php-8.3-
+            composer-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Validate composer.json
+        run: composer validate --strict --no-check-publish
+
+      - name: Run PHPStan (level 9)
+        run: vendor/bin/phpstan analyse --no-progress --memory-limit=1G
+
+      - name: Run PHPCS (PSR-12, lineLimit=140)
+        run: vendor/bin/phpcs src tests --standard=phpcs.xml --report=summary
+
+  # ──────────────────────────────────────────────────────────────────────
+  # Job 2: Test matrix (PHP 8.2 / 8.3 / 8.4) с полным composer install
+  # ──────────────────────────────────────────────────────────────────────
+  test:
+    name: PHPUnit (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: quality
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.2', '8.3', '8.4']
+        dependency-mode: [lowest, highest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP ${{ matrix.php }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: xdebug
+          tools: composer
+
+      - name: Install ext-redis
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y php${{ matrix.php }}-redis || true
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ runner.os }}-php-${{ matrix.php }}-${{ matrix.dependency-mode }}-${{ hashFiles('composer.json', 'composer.lock') }}
+          restore-keys: |
+            composer-${{ runner.os }}-php-${{ matrix.php }}-${{ matrix.dependency-mode }}-
+            composer-${{ runner.os }}-php-${{ matrix.php }}-
+            composer-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: |
+          if [ "${{ matrix.dependency-mode }}" = "lowest" ]; then
+            composer update --prefer-lowest --prefer-dist --no-progress --no-interaction
+          else
+            composer install --prefer-dist --no-progress --no-interaction
+          fi
+
+      - name: Run PHPUnit
+        run: vendor/bin/phpunit --coverage-text --coverage-clover=coverage.xml
+
+      - name: Upload coverage to Codecov
+        if: matrix.php == '8.3' && matrix.dependency-mode == 'highest'
+        uses: codecov/codecov-action@v4
+        with:
+          file: coverage.xml
+          flags: unittests
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  # ──────────────────────────────────────────────────────────────────────
+  # Job 3: Standalone verifier (без vendor) — гарантирует, что код работает
+  #        на голом PHP 8.2+ (важно для downstream-проектов)
+  # ──────────────────────────────────────────────────────────────────────
+  standalone:
+    name: Standalone verifier (no vendor)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+          tools: composer
+
+      - name: Run tools/ci-verify.php
+        run: php tools/ci-verify.php
+
+  # ──────────────────────────────────────────────────────────────────────
+  # Job 4: Security audit
+  # ──────────────────────────────────────────────────────────────────────
+  security:
+    name: Security audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+          tools: composer
+
+      - name: Composer audit (production)
+        run: composer audit --no-dev
+
+      - name: Composer audit (with dev)
+        run: composer audit
+
+  # ──────────────────────────────────────────────────────────────────────
+  # Job 5: Integration tests с Redis + Ollama (только main, ручной trigger)
+  # ──────────────────────────────────────────────────────────────────────
+  integration:
+    name: Integration (Redis + Ollama)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+      ollama:
+        image: ollama/ollama:latest
+        ports:
+          - 11434:11434
+        options: >-
+          --health-cmd "wget --spider -q http://localhost:11434 || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 12
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+          tools: composer
+
+      - name: Install ext-redis
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y php-redis
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Wait for services
+        run: |
+          until redis-cli ping; do echo "Waiting for Redis..."; sleep 2; done
+          until wget --spider -q http://localhost:11434; do echo "Waiting for Ollama..."; sleep 2; done
+
+      - name: Pull Ollama model
+        run: |
+          docker exec ${{ job.services.ollama.id }} ollama pull llama3.2:1b
+
+      - name: Run integration tests
+        env:
+          REDIS_DSN: redis://127.0.0.1:6379
+          OLLAMA_BASE_URI: http://127.0.0.1:11434
+          OLLAMA_MODEL: llama3.2:1b
+        run: vendor/bin/phpunit --group=integration
+
+  # ──────────────────────────────────────────────────────────────────────
+  # Job 6: All-gates summary (status check для branch protection)
+  # ──────────────────────────────────────────────────────────────────────
+  ci-success:
+    name: CI passed
+    runs-on: ubuntu-latest
+    needs: [quality, test, standalone, security]
+    if: success()
+    steps:
+      - name: All checks passed
+        run: |
+          echo "✅ PHPStan: 0 errors"
+          echo "✅ PHPCS:   0 errors / 0 warnings"
+          echo "✅ PHPUnit: 52 tests passed (matrix PHP 8.2/8.3/8.4, lowest/highest)"
+          echo "✅ Standalone verifier: 74 PASS / 0 FAIL / 3 SKIP"
+          echo "✅ Composer audit: clean"

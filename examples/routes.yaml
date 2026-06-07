@@ -1,0 +1,48 @@
+routes:
+  - name: v1.search.web
+    method: POST
+    path: /v1/search/web
+    action: searchWeb
+    requiredScopes: [search:web]
+    rateLimit: {limit: 100, window: 60}
+
+  - name: v1.search.news
+    method: POST
+    path: /v1/search/news
+    action: searchNews
+    requiredScopes: [search:news]
+    rateLimit: {limit: 60, window: 60}
+
+  - name: v1.search.gen
+    method: POST
+    path: /v1/search/gen
+    action: searchGen
+    requiredScopes: [llm:generate]
+    rateLimit: {limit: 30, window: 60}
+
+  - name: v1.llm.context
+    method: POST
+    path: /v1/llm/context
+    action: llmContext
+    requiredScopes: [llm:context]
+
+  - name: v1.hybrid
+    method: POST
+    path: /v1/hybrid
+    action: hybrid
+    requiredScopes: [llm:hybrid]
+
+  - name: v1.stream.chat
+    method: POST
+    path: /v1/stream/chat
+    action: stream
+    requiredScopes: [llm:stream]
+    rateLimit: {limit: 20, window: 60}
+    config:
+      description: SSE streaming chat completion
+
+  - name: v1.wordstat
+    method: POST
+    path: /v1/wordstat
+    action: wordstat
+    requiredScopes: [analytics:wordstat]
