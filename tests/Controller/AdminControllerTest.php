@@ -76,7 +76,10 @@ final class AdminControllerTest extends TestCase
     public function testListRoutesReturnsRegisteredRoutes(): void
     {
         $this->registry->register(new \SearchGateway\Router\Route(
-            name: 'v1.web', method: 'POST', path: '/v1/search/web', action: 'searchWeb',
+            name: 'v1.web',
+            method: 'POST',
+            path: '/v1/search/web',
+            action: 'searchWeb',
         ));
 
         $response = $this->controller->handle($this->adminRequest('GET', '/admin/routes'));
@@ -123,7 +126,10 @@ final class AdminControllerTest extends TestCase
     public function testDeleteRouteRemovesIt(): void
     {
         $this->registry->register(new \SearchGateway\Router\Route(
-            name: 'v1.web', method: 'POST', path: '/v1/search/web', action: 'searchWeb',
+            name: 'v1.web',
+            method: 'POST',
+            path: '/v1/search/web',
+            action: 'searchWeb',
         ));
 
         $response = $this->controller->handle($this->adminRequest('DELETE', '/admin/routes/v1.web'));

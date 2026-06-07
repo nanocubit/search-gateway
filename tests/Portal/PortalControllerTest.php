@@ -22,7 +22,10 @@ final class PortalControllerTest extends TestCase
     {
         $registry = new InMemoryRouteRegistry();
         $registry->register(new Route(
-            name: 'v1.web', method: Route::METHOD_POST, path: '/v1/search/web', action: Route::ACTION_SEARCH_WEB,
+            name: 'v1.web',
+            method: Route::METHOD_POST,
+            path: '/v1/search/web',
+            action: Route::ACTION_SEARCH_WEB,
         ));
         $this->controller = new PortalController(new OpenApiGenerator($registry));
         $this->factory = new Psr17Factory();

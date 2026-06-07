@@ -152,7 +152,7 @@ final class PluginPipelineTest extends TestCase
 
     private function makeAppender(string $tag): \SearchGateway\Plugin\PluginInterface
     {
-        return new class($tag) implements \SearchGateway\Plugin\PluginInterface {
+        return new class ($tag) implements \SearchGateway\Plugin\PluginInterface {
             public function __construct(private readonly string $tag)
             {
             }

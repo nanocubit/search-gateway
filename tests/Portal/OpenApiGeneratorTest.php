@@ -82,7 +82,10 @@ final class OpenApiGeneratorTest extends TestCase
     public function testSingleRouteProducesPathWithLowercaseMethod(): void
     {
         $this->registry->register(new Route(
-            name: 'v1.web', method: Route::METHOD_POST, path: '/v1/search/web', action: Route::ACTION_SEARCH_WEB,
+            name: 'v1.web',
+            method: Route::METHOD_POST,
+            path: '/v1/search/web',
+            action: Route::ACTION_SEARCH_WEB,
         ));
 
         $spec = $this->spec();
@@ -95,7 +98,10 @@ final class OpenApiGeneratorTest extends TestCase
     public function testPostRouteHasRequestBodySchema(): void
     {
         $this->registry->register(new Route(
-            name: 'v1.gen', method: Route::METHOD_POST, path: '/v1/search/gen', action: Route::ACTION_SEARCH_GEN,
+            name: 'v1.gen',
+            method: Route::METHOD_POST,
+            path: '/v1/search/gen',
+            action: Route::ACTION_SEARCH_GEN,
         ));
 
         $spec = $this->spec();
@@ -115,7 +121,10 @@ final class OpenApiGeneratorTest extends TestCase
     public function testGetRouteHasNoRequestBody(): void
     {
         $this->registry->register(new Route(
-            name: 'v1.list', method: Route::METHOD_GET, path: '/v1/list', action: Route::ACTION_SEARCH_WEB,
+            name: 'v1.list',
+            method: Route::METHOD_GET,
+            path: '/v1/list',
+            action: Route::ACTION_SEARCH_WEB,
         ));
 
         $spec = $this->spec();
@@ -144,7 +153,10 @@ final class OpenApiGeneratorTest extends TestCase
     public function testAllRouteActionsGenerateResponses(): void
     {
         $this->registry->register(new Route(
-            name: 'v1.web', method: Route::METHOD_POST, path: '/v1/search/web', action: Route::ACTION_SEARCH_WEB,
+            name: 'v1.web',
+            method: Route::METHOD_POST,
+            path: '/v1/search/web',
+            action: Route::ACTION_SEARCH_WEB,
         ));
 
         $spec = $this->spec();
@@ -159,7 +171,10 @@ final class OpenApiGeneratorTest extends TestCase
     public function testToJsonReturnsValidJsonString(): void
     {
         $this->registry->register(new Route(
-            name: 'v1.web', method: Route::METHOD_POST, path: '/v1/search/web', action: Route::ACTION_SEARCH_WEB,
+            name: 'v1.web',
+            method: Route::METHOD_POST,
+            path: '/v1/search/web',
+            action: Route::ACTION_SEARCH_WEB,
         ));
 
         $json = $this->generator->toJson();
@@ -175,10 +190,16 @@ final class OpenApiGeneratorTest extends TestCase
     public function testMultipleRoutesOnSamePathAreGrouped(): void
     {
         $this->registry->register(new Route(
-            name: 'v1.web.get', method: Route::METHOD_GET, path: '/v1/search/web', action: Route::ACTION_SEARCH_WEB,
+            name: 'v1.web.get',
+            method: Route::METHOD_GET,
+            path: '/v1/search/web',
+            action: Route::ACTION_SEARCH_WEB,
         ));
         $this->registry->register(new Route(
-            name: 'v1.web.post', method: Route::METHOD_POST, path: '/v1/search/web', action: Route::ACTION_SEARCH_WEB,
+            name: 'v1.web.post',
+            method: Route::METHOD_POST,
+            path: '/v1/search/web',
+            action: Route::ACTION_SEARCH_WEB,
         ));
 
         $spec = $this->spec();
