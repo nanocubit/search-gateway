@@ -7,6 +7,10 @@
         <exclude name="Generic.Files.LineLength.TooLong"/>
     </rule>
     <rule ref="Generic.Files.LineLength">
+    <!-- Исключение для тестов: разрешаем несколько классов в одном файле -->
+    <rule ref="PSR1.Classes.ClassDeclaration.MultipleClasses">
+        <exclude-pattern>tests/*</exclude-pattern>
+    </rule>     
         <properties>
             <property name="lineLimit" value="140"/>
             <property name="absoluteLineLimit" value="0"/>
