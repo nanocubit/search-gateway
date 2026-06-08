@@ -52,78 +52,122 @@ Instead of writing ad-hoc integrations for every search API, you get:
 ## Architecture (7 Levels)
 
 ```mermaid
-graph TB
-    subgraph L1["L1 — Contract"]
-        A[SearchGatewayInterface]
-        B[GenerativeSearchResultDTO]
-        C[SearchGatewayException]
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#ffffff', 'edgeLabelBackground':'#ffffff', 'tertiaryColor': '#f4f4f4'}}}%%
+graph TD
+    %% --- Стили для слоёв (Color Coding) ---
+    classDef contract fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#0d47a1,font-weight:bold;
+    classDef infra fill:#f5f5f5,stroke:#616161,stroke-width:2px,stroke-dasharray: 5 5,color:#212121;
+    classDef provider fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#1b5e20;
+    classDef decorator fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#bf360c;
+    classDef tool fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px,color:#4a148c,font-weight:bold;
+    classDef ranker fill:#fff8e1,stroke:#f57f17,stroke-width:2px,color:#e65100;
+    classDef agent fill:#ffebee,stroke:#c62828,stroke-width:2px,color:#b71c1c,font-weight:bold;
+
+    %% --- L1: Contract ---
+    subgraph L1 ["L1 — Contract (Ядро)"]
+        direction TB
+        A[SearchGatewayInterface]:::contract
+        B[GenerativeSearchResultDTO]:::contract
+        C[SearchGatewayException]:::contract
     end
 
-    subgraph L2["L2 — Infrastructure"]
-        I1[HttpClientInterface]
-        I2[CacheInterface]
-        I3[MetricsInterface]
-        I4[LoggerInterface]
-        I5[LLMClientInterface]
-        I6[RateLimiterInterface]
-        I7[EventBusInterface]
-        I8[AsyncHttpClientInterface]
-        I9[StreamingResponseInterface]
+    %% --- L2: Infrastructure ---
+    subgraph L2 ["L2 — Infrastructure (Инфраструктура)"]
+        direction TB
+        I1[HttpClientInterface]:::infra
+        I8[AsyncHttpClientInterface]:::infra
+        I2[CacheInterface]:::infra
+        I3[MetricsInterface]:::infra
+        I4[LoggerInterface]:::infra
+        I5[LLMClientInterface]:::infra
+        I6[RateLimiterInterface]:::infra
+        I7[EventBusInterface]:::infra
+        I9[StreamingResponseInterface]:::infra
+        
+        RCBR[RedisCircuitBreaker]:::infra
+        IMCB[InMemoryCircuitBreaker]:::infra
+        GCH[GuzzleConcurrentHttpClient]:::infra
     end
 
-    subgraph L3["L3 — Providers"]
-        Y[YandexCloudSearchGateway]
-        Br[BraveSearchGateway]
-        P[PerplexitySearchGateway]
-        Bi[BingSearchGateway]
-        M[MockSearchGateway]
+    %% --- L3: Providers ---
+    subgraph L3 ["L3 — Providers (Внешние источники)"]
+        direction TB
+        Y[YandexCloudSearchGateway]:::provider
+        Br[BraveSearchGateway]:::provider
+        P[PerplexitySearchGateway]:::provider
+        Bi[BingSearchGateway]:::provider
+        M[MockSearchGateway]:::provider
+        OC[OllamaLLMClient]:::provider
     end
 
-    subgraph L4["L4 — Decorators"]
-        C1[CachedSearchGatewayDecorator]
-        C2[RetryingSearchGatewayDecorator]
-        C3[MetricsSearchGatewayDecorator]
-        C4[LoggerSearchGatewayDecorator]
-        C5[LLMAnswerSearchGatewayDecorator]
-        C6[FallbackSearchGatewayDecorator]
-        C7[CircuitBreakerSearchGatewayDecorator]
-        C8[RateLimitedSearchGatewayDecorator]
-        C9[EventBusSearchGatewayDecorator]
+    %% --- L4: Decorators ---
+    subgraph L4 ["L4 — Decorators (Поведенческие обёртки)"]
+        direction TB
+        C1[CachedSearchGatewayDecorator]:::decorator
+        C2[RetryingSearchGatewayDecorator]:::decorator
+        C3[MetricsSearchGatewayDecorator]:::decorator
+        C4[LoggerSearchGatewayDecorator]:::decorator
+        C5[LLMAnswerSearchGatewayDecorator]:::decorator
+        C6[FallbackSearchGatewayDecorator]:::decorator
+        C7[CircuitBreakerSearchGatewayDecorator]:::decorator
+        C8[RateLimitedSearchGatewayDecorator]:::decorator
+        C9[EventBusSearchGatewayDecorator]:::decorator
     end
 
-    subgraph L5["L5 — Tools & Multi"]
-        T1[SearchTool]
-        T2[MultiSearchGateway]
-        T3[AsyncMultiSearchGateway]
-        T4[GatewayBuilder]
-        T5[StreamingSearchGateway]
+    %% --- L5: Tools & Multi ---
+    subgraph L5 ["L5 — Tools & Composition (Инструменты)"]
+        direction TB
+        T1[SearchTool]:::tool
+        T2[MultiSearchGateway]:::tool
+        T3[AsyncMultiSearchGateway]:::tool
+        T4[GatewayBuilder]:::tool
+        T5[StreamingSearchGateway]:::tool
     end
 
-    subgraph L6["L6 — Ranker & Prompt"]
-        R1[SearchResultRanker]
-        R2[SearchResultFilter]
-        R3[PromptBuilder]
-        R4[ResponseFormatter]
+    %% --- L6: Ranker & Prompt ---
+    subgraph L6 ["L6 — Post-Processing (Ранжирование)"]
+        direction TB
+        R1[SearchResultRanker]:::ranker
+        R2[SearchResultFilter]:::ranker
+        R3[PromptBuilder]:::ranker
+        R4[ResponseFormatter]:::ranker
     end
 
-    subgraph L7["L7 — Agent"]
-        Ag[AgentWorkflow]
-        Pe[PersonalSearchContext]
-        H[HealthChecker]
+    %% --- L7: Agent ---
+    subgraph L7 ["L7 — Agent (Оркестрация)"]
+        direction TB
+        Ag[AgentWorkflow]:::agent
+        Pe[PersonalSearchContext]:::agent
+        H[HealthChecker]:::agent
     end
 
-    A --> Y & Br & P & Bi & M
-    I1 & I2 & I3 & I4 & I5 & I6 & I7 & I8 & I9 --> C1 & C2 & C3 & C4 & C5 & C6 & C7 & C8 & C9
-    Y & Br & P & Bi & M --> C1 & C2 & C3 & C4 & C5 & C6 & C7 & C8 & C9
-    C1 & C2 & C3 & C4 & C5 & C6 & C7 & C8 & C9 --> T1 & T2 & T3 & T4 & T5
-    T1 & T2 & T3 & T4 & T5 --> R1 & R2 & R3 & R4
-    R1 & R2 & R3 & R4 --> Ag
+    %% --- Логические связи ---
+    A -. "реализуется" .-> Y & Br & P & Bi & M
+    
+    I2 -. "использует" .-> C1
+    I8 -. "использует" .-> C2
+    I3 -. "использует" .-> C3
+    I6 -. "использует" .-> C8
+    RCBR & IMCB -. "реализация для" .-> C7
+    
+    Y & Br & P & Bi & M -. "wraps" .-> C1 & C2 & C3 & C4 & C5 & C6 & C7 & C8 & C9
+    
+    C1 & C2 & C3 & C4 & C5 & C6 & C7 & C8 & C9 ==> T1 & T2 & T3 & T4 & T5
+    
+    T1 & T2 & T3 & T5 ==> R1 & R2 & R3 & R4
+    
+    R1 & R2 & R3 & R4 ==> Ag
     Ag --> Pe
-    H --> Y & Br & P & Bi
-    RCBR[RedisCircuitBreaker] --> D_CB
-    IMCB[InMemoryCircuitBreaker] --> D_CB
-    GCH[GuzzleConcurrentHttpClient] --> T_AS
-    OC[OllamaLLMClient] --> S
+    H -. "мониторит" .-> Y & Br & P & Bi
+    
+    GCH -. "реализация" .-> I8
+    OC -. "реализация" .-> I5
+
+    %% --- Глобальные стили линий ---
+    linkStyle default stroke:#9e9e9e,stroke-width:1.5px,fill:none;
+    
+    %% Выделяем основной поток Decorator -> Tool -> Ranker
+    linkStyle 10,11,12 stroke:#e65100,stroke-width:2.5px;
 ```
 
 ## Production Components (added in 2.0)
