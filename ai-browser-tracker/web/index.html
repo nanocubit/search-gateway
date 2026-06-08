@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>AI Browser Tracker 3.1 — Dashboard</title>
+  <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f0f1a;
+      color: #e0e0f0;
+      min-height: 100vh;
+    }
+    header {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      padding: 20px 30px;
+      border-bottom: 2px solid #cba6f7;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    h1 { font-size: 24px; color: #cba6f7; }
+    .stats { display: flex; gap: 15px; flex-wrap: wrap; }
+    .stat-box {
+      background: #1e1e2e;
+      padding: 10px 18px;
+      border-radius: 8px;
+      border-left: 3px solid #89b4fa;
+    }
+    .stat-box .value { font-size: 22px; font-weight: bold; color: #89b4fa; }
+    .stat-box .label { font-size: 11px; color: #a6adc8; text-transform: uppercase; }
+    nav {
+      background: #181825;
+      padding: 10px 30px;
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid #313244;
+      flex-wrap: wrap;
+    }
+    nav button {
+      background: #313244;
+      color: #cdd6f4;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
+    nav button:hover { background: #45475a; }
+    nav button.active { background: #cba6f7; color: #1e1e2e; font-weight: bold; }
+    .container { padding: 20px 30px; max-width: 1400px; margin: 0 auto; }
+    .tab { display: none; }
+    .tab.active { display: block; }
+    #graph {
+      width: 100%;
+      height: 550px;
+      background: #1e1e2e;
+      border-radius: 12px;
+      border: 1px solid #313244;
+    }
+    .message-list {
+      max-height: 650px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .msg-card {
+      background: #1e1e2e;
+      padding: 14px 18px;
+      border-radius: 10px;
+      border-left: 4px solid #89b4fa;
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+    .msg-card:hover { transform: translateX(4px); background: #252538; }
+    .msg-card.user { border-left-color: #f38ba8; }
+    .msg-card.assistant { border-left-color: #a6e3a1; }
+    .msg-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      font-size: 12px;
+      color: #a6adc8;
+    }
+    .msg-platform { background: #313244; padding: 2px 8px; border-radius: 4px; }
+    .msg-content { font-size: 14px; line-height: 1.5; white-space: pre-wrap; }
+    .filters {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .filters input, .filters select, .filters button {
+      background: #1e1e2e;
+      color: #cdd6f4;
+      border: 1px solid #313244;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    .filters button {
+      background: #cba6f7;
+      color: #1e1e2e;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .export-panel {
+      background: #1e1e2e;
+      padding: 20px;
+      border-radius: 12px;
+      margin-top: 20px;
+    }
+    .export-panel h3 { margin-bottom: 15px; color: #cba6f7; }
+    .export-buttons { display: flex; gap: 10px; flex-wrap: wrap; }
+    .export-btn {
+      background: #313244;
+      color: #cdd6f4;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      text-decoration: none;
+      font-size: 14px;
+      display: inline-block;
+    }
+    .export-btn:hover { background: #45475a; }
+    .export-btn.json { border-left: 4px solid #f9e2af; }
+    .export-btn.csv { border-left: 4px solid #a6e3a1; }
+    .export-btn.md { border-left: 4px solid #89b4fa; }
+    .page-list { display: flex; flex-direction: column; gap: 6px; }
+    .page-item {
+      background: #1e1e2e;
+      padding: 10px 14px;
+      border-radius: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+    }
+    .page-item a {
+      color: #89b4fa;
+      text-decoration: none;
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .page-item a:hover { text-decoration: underline; }
+    .page-time { color: #a6adc8; font-size: 11px; margin-left: 10px; }
+    .loading { text-align: center; padding: 40px; color: #a6adc8; }
+    .link-btn {
+      display: inline-block;
+      background: #313244;
+      color: #89b4fa;
+      padding: 8px 16px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 14px;
+    }
+    .link-btn:hover { background: #45475a; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>AI Browser Tracker 3.1</h1>
+    <div class="stats" id="stats"></div>
+  </header>
+
+  <nav>
+    <button class="tab-btn active" data-tab="graph">Граф</button>
+    <button class="tab-btn" data-tab="chat">Чаты</button>
+    <button class="tab-btn" data-tab="pages">Страницы</button>
+    <button class="tab-btn" data-tab="agents">Агенты</button>
+    <button class="tab-btn" data-tab="export">Экспорт</button>
+    <button class="tab-btn" data-tab="integrations">Интеграции</button>
+    <a class="link-btn" href="/chat.html" target="_blank">Полноэкранный чат</a>
+  </nav>
+
+  <div class="container">
+    <div class="tab active" id="tab-graph">
+      <div class="filters">
+        <input type="text" id="graph-search" placeholder="ID сообщения для графа...">
+        <button onclick="loadGraph()">Построить</button>
+        <button onclick="loadRandomGraph()">Случайное</button>
+      </div>
+      <div id="graph"></div>
+      <p style="margin-top:10px;color:#a6adc8;font-size:13px">
+        Введите ID или нажмите "Случайное". Граф показывает связи similar_to и follows.
+      </p>
+    </div>
+
+    <div class="tab" id="tab-chat">
+      <div class="filters">
+        <select id="chat-platform">
+          <option value="">Все платформы</option>
+          <option value="chat.openai.com">ChatGPT</option>
+          <option value="claude.ai">Claude</option>
+          <option value="gemini.google.com">Gemini</option>
+          <option value="deepseek.com">DeepSeek</option>
+          <option value="perplexity.ai">Perplexity</option>
+        </select>
+        <select id="chat-role">
+          <option value="">Все роли</option>
+          <option value="user">Пользователь</option>
+          <option value="assistant">Ассистент</option>
+        </select>
+        <input type="number" id="chat-limit" value="100" style="width:80px">
+        <button onclick="loadChat()">Загрузить</button>
+      </div>
+      <div class="message-list" id="chat-list"></div>
+    </div>
+
+    <div class="tab" id="tab-pages">
+      <div class="filters">
+        <input type="number" id="pages-limit" value="200" style="width:80px">
+        <button onclick="loadPages()">Загрузить</button>
+      </div>
+      <div class="page-list" id="page-list"></div>
+    </div>
+
+    <div class="tab" id="tab-agents">
+      <div id="agents-list"></div>
+    </div>
+
+    <div class="tab" id="tab-export">
+      <div class="export-panel">
+        <h3>Экспорт данных</h3>
+        <div class="filters" style="margin-bottom:15px">
+          <input type="password" id="export-token" placeholder="Bearer токен" value="ai-agent-hybrid-token-2026">
+          <select id="export-type">
+            <option value="chat">История чатов</option>
+            <option value="pages">Страницы</option>
+            <option value="agents">Агенты</option>
+          </select>
+          <input type="number" id="export-limit" value="1000" style="width:100px">
+        </div>
+        <div class="export-buttons">
+          <a class="export-btn json" onclick="doExport('json')">JSON</a>
+          <a class="export-btn csv" onclick="doExport('csv')">CSV</a>
+          <a class="export-btn md" onclick="doExport('md')">Markdown</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab" id="tab-integrations">
+      <div class="export-panel">
+        <h3>Интеграции</h3>
+        <div id="integrations-status" class="loading">Загрузка...</div>
+
+        <h4 style="margin-top:20px;color:#a6e3a1">Obsidian Vault</h4>
+        <div id="obsidian-status" class="loading">Проверка...</div>
+        <button onclick="testObsidian()" style="margin-top:10px" class="export-btn">Проверить Obsidian</button>
+
+        <h4 style="margin-top:20px;color:#89b4fa">Notion Database</h4>
+        <div id="notion-status" class="loading">Проверка...</div>
+        <button onclick="testNotion()" style="margin-top:10px" class="export-btn">Проверить Notion</button>
+
+        <h4 style="margin-top:20px;color:#cba6f7">VS Code Workspace</h4>
+        <div id="vscode-status" class="loading">Проверка...</div>
+        <button onclick="testVSCode()" style="margin-top:10px" class="export-btn">Проверить VS Code</button>
+
+        <h4 style="margin-top:20px;color:#f9e2af">Ручной экспорт истории</h4>
+        <div class="filters" style="margin-top:10px">
+          <select id="manual-type">
+            <option value="chat">История чатов</option>
+            <option value="pages">Страницы</option>
+          </select>
+          <input type="number" id="manual-limit" value="100" style="width:100px">
+          <select id="manual-targets" multiple size="3" style="min-width:150px">
+            <option value="obsidian" selected>Obsidian</option>
+            <option value="notion">Notion</option>
+            <option value="vscode" selected>VS Code</option>
+          </select>
+          <button onclick="manualExport()" class="export-btn">Экспортировать</button>
+        </div>
+        <div id="manual-result" style="margin-top:10px;color:#a6adc8"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

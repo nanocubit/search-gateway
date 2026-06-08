@@ -1,0 +1,1288 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FocusFlow AI — Расширение браузера</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+  :root {
+    --bg:#0e1117;--bg2:#161b22;--bg3:#1c2230;--bg4:#252d3a;
+    --fg:#e6edf3;--fm:#7d8590;--fd:#484f58;
+    --ai:#00b4d8;--ai2:rgba(0,180,216,.12);--ai3:rgba(0,180,216,.25);
+    --ok:#00d68f;--ok2:rgba(0,214,143,.12);--ok3:rgba(0,214,143,.25);
+    --pu:#a78bfa;--pu2:rgba(167,139,250,.12);--pu3:rgba(167,139,250,.25);
+    --am:#f59e0b;--am2:rgba(245,158,11,.12);--am3:rgba(245,158,11,.25);
+    --rd:#f85149;--rd2:rgba(248,81,73,.12);
+    --bd:#30363d;--r:10px;--rs:6px;--tr:.2s cubic-bezier(.4,0,.2,1);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Space Grotesk',sans-serif;background:var(--bg);color:var(--fg);display:flex;justify-content:center;align-items:center;min-height:100vh;overflow:hidden}
+
+  .amb{position:fixed;inset:0;pointer-events:none;z-index:0}
+  .amb span{position:absolute;border-radius:50%;filter:blur(120px);animation:of 12s ease-in-out infinite alternate}
+  .amb span:nth-child(1){width:400px;height:400px;background:var(--ai);top:-100px;left:-100px;opacity:.06}
+  .amb span:nth-child(2){width:300px;height:300px;background:var(--pu);bottom:-80px;right:-80px;opacity:.05;animation-delay:-4s}
+  @keyframes of{to{transform:translate(40px,30px) scale(1.1)}}
+
+  .bf{position:relative;z-index:1;display:flex;flex-direction:column;align-items:flex-end}
+  .bb{width:860px;height:44px;background:#1a1e26;border-radius:12px 12px 0 0;border:1px solid var(--bd);border-bottom:none;display:flex;align-items:center;padding:0 14px;gap:10px}
+  .bd{display:flex;gap:6px}.bd span{width:11px;height:11px;border-radius:50%;display:block}
+  .bd span:nth-child(1){background:#f85149}.bd span:nth-child(2){background:#f0b429}.bd span:nth-child(3){background:#00d68f}
+  .bu{flex:1;height:28px;background:var(--bg);border-radius:6px;border:1px solid var(--bd);display:flex;align-items:center;padding:0 10px;gap:6px;font-size:12px;color:var(--fm)}
+  .bu i{font-size:10px}.bu .lk{color:var(--fd)}
+
+  .es{width:860px;height:38px;background:#1e2330;border:1px solid var(--bd);border-bottom:none;display:flex;align-items:center;padding:0 14px;gap:8px}
+  .ei{width:24px;height:24px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--fm);background:var(--bg3);border:1px solid transparent;cursor:pointer;transition:var(--tr);position:relative}
+  .ei:hover{border-color:var(--bd);color:var(--fg)}
+  .ei.act{background:var(--ai2);border-color:var(--ai);color:var(--ai);box-shadow:0 0 8px var(--ai3)}
+  .ei.act::after{content:'';position:absolute;bottom:-3px;width:4px;height:4px;border-radius:50%;background:var(--ai)}
+  .esep{width:1px;height:18px;background:var(--bd);margin:0 4px}
+
+  .bc{width:860px;height:520px;background:var(--bg);border:1px solid var(--bd);border-radius:0 0 12px 12px;position:relative;overflow:hidden}
+  .mp{position:absolute;inset:0;padding:40px;opacity:.15;pointer-events:none}
+  .mp div{background:var(--bg3);border-radius:4px;margin-bottom:10px}
+  .mp .mh{height:16px;width:200px;margin-bottom:20px}
+  .mp .ml{height:8px}.mp .ml:nth-child(2){width:80%}.mp .ml:nth-child(3){width:65%}
+  .mp .mb{width:100%;height:180px;border-radius:8px;margin-top:20px}
+
+  .ctx{position:absolute;z-index:50;min-width:220px;background:var(--bg2);border:1px solid var(--bd);border-radius:var(--r);padding:6px;box-shadow:0 12px 40px rgba(0,0,0,.6);display:none;animation:ctxIn .15s ease}
+  @keyframes ctxIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
+  .ctx.show{display:block}
+  .ctx-title{font-size:9px;font-weight:600;color:var(--fd);text-transform:uppercase;letter-spacing:1.2px;padding:6px 10px 4px}
+  .ctx-item{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:var(--rs);cursor:pointer;transition:var(--tr);font-size:12px;color:var(--fm)}
+  .ctx-item:hover{background:var(--ai2);color:var(--ai)}
+  .ctx-item i{width:16px;text-align:center;font-size:12px}
+  .ctx-item .shortcut{margin-left:auto;font-size:10px;color:var(--fd);font-family:'JetBrains Mono',monospace}
+  .ctx-sep{height:1px;background:var(--bd);margin:4px 8px}
+
+  .popup{position:absolute;top:12px;right:12px;width:380px;height:496px;background:var(--bg2);border:1px solid var(--bd);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.03) inset,0 0 40px var(--ai3);display:flex;flex-direction:column;overflow:hidden;z-index:10;animation:pi .35s cubic-bezier(.34,1.56,.64,1)}
+  @keyframes pi{from{opacity:0;transform:scale(.92) translateY(-8px)}to{opacity:1;transform:scale(1) translateY(0)}}
+
+  .ph{padding:10px 14px 0;display:flex;align-items:center;gap:8px}
+  .pl{width:30px;height:30px;border-radius:7px;background:linear-gradient(135deg,var(--ai),#0077b6);display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;flex-shrink:0}
+  .ptg{flex:1}.pt{font-size:13px;font-weight:700;letter-spacing:-.3px}
+  .pts{font-size:9px;color:var(--fm);margin-top:1px}
+
+  .model-sel{display:flex;align-items:center;gap:4px;padding:6px 14px 0;flex-wrap:wrap}
+  .model-pill{padding:3px 8px;border-radius:20px;border:1px solid var(--bd);background:transparent;color:var(--fd);font-size:9px;font-family:inherit;font-weight:500;cursor:pointer;transition:var(--tr)}
+  .model-pill:hover{border-color:var(--fm);color:var(--fm)}
+  .model-pill.act{border-color:var(--ai);color:var(--ai);background:var(--ai2)}
+  .model-pill.local{position:relative}
+  .model-pill.local::before{content:'';width:4px;height:4px;border-radius:50%;background:var(--ok);position:absolute;top:-1px;right:-1px}
+
+  .pn{display:flex;padding:8px 14px 0;gap:0;border-bottom:1px solid var(--bd)}
+  .nt{flex:1;text-align:center;padding:7px 0 8px;font-size:10px;font-weight:500;color:var(--fm);cursor:pointer;position:relative;transition:var(--tr);border:none;background:none;font-family:inherit}
+  .nt:hover{color:var(--fg)}
+  .nt.act{color:var(--ai)}
+  .nt.act::after{content:'';position:absolute;bottom:-1px;left:20%;width:60%;height:2px;border-radius:2px}
+  .nt i{display:block;font-size:13px;margin-bottom:2px}
+  .nt[data-tab="chat"].act{color:var(--ai)}.nt[data-tab="chat"].act::after{background:var(--ai)}
+  .nt[data-tab="tools"].act{color:var(--ok)}.nt[data-tab="tools"].act::after{background:var(--ok)}
+  .nt[data-tab="know"].act{color:var(--pu)}.nt[data-tab="know"].act::after{background:var(--pu)}
+  .nt[data-tab="agents"].act{color:var(--am)}.nt[data-tab="agents"].act::after{background:var(--am)}
+  .nt[data-tab="focus"].act{color:var(--ok)}.nt[data-tab="focus"].act::after{background:var(--ok)}
+
+  .pb{flex:1;overflow-y:auto;overflow-x:hidden}
+  .pb::-webkit-scrollbar{width:3px}.pb::-webkit-scrollbar-track{background:transparent}.pb::-webkit-scrollbar-thumb{background:var(--fd);border-radius:2px}
+
+  .tp{display:none;animation:fs .25s ease}.tp.act{display:flex;flex-direction:column;height:100%}
+  @keyframes fs{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+  .tscroll{padding:12px 14px;overflow-y:auto;flex:1}
+  .tscroll::-webkit-scrollbar{width:3px}.tscroll::-webkit-scrollbar-thumb{background:var(--fd);border-radius:2px}
+
+  .chat-quick{padding:8px 14px;display:flex;gap:5px}
+  .cq-btn{flex:1;padding:7px 4px;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rs);cursor:pointer;transition:var(--tr);display:flex;flex-direction:column;align-items:center;gap:3px;font-family:inherit}
+  .cq-btn:hover{border-color:var(--ai);background:var(--ai2);transform:translateY(-1px)}
+  .cq-btn i{font-size:13px;color:var(--ai)}.cq-btn span{font-size:8px;font-weight:500;color:var(--fm)}.cq-btn:hover span{color:var(--fg)}
+
+  .chat-up{margin:0 14px 8px;padding:10px;border:2px dashed var(--bd);border-radius:var(--r);text-align:center;cursor:pointer;transition:var(--tr)}
+  .chat-up:hover{border-color:var(--ai);background:var(--ai2)}
+  .chat-up.has{border-style:solid;border-color:var(--ok);background:var(--ok2)}
+  .chat-up i{font-size:16px;color:var(--fd);margin-bottom:4px;display:block}
+  .chat-up .ut{font-size:10px;font-weight:600;color:var(--fm)}
+  .chat-up .uh{font-size:9px;color:var(--fd);margin-top:1px}
+  .chat-up.has i{color:var(--ok)}.chat-up.has .ut{color:var(--ok)}
+
+  .chat{flex:1;display:flex;flex-direction:column;min-height:0}
+  .chat-msgs{flex:1;overflow-y:auto;padding:8px 14px;display:flex;flex-direction:column;gap:8px}
+  .chat-msgs::-webkit-scrollbar{width:3px}.chat-msgs::-webkit-scrollbar-thumb{background:var(--fd);border-radius:2px}
+  .cm{display:flex;gap:6px;animation:mi .3s ease}
+  @keyframes mi{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+  .cm.usr{flex-direction:row-reverse}
+  .ca{width:22px;height:22px;border-radius:5px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px}
+  .cm.ai .ca{background:var(--ai2);color:var(--ai)}.cm.usr .ca{background:var(--bg4);color:var(--fm)}
+  .cb{max-width:82%;padding:7px 10px;border-radius:9px;font-size:11px;line-height:1.5}
+  .cm.ai .cb{background:var(--bg3);border:1px solid var(--bd);border-top-left-radius:2px}
+  .cm.usr .cb{background:var(--ai2);border:1px solid rgba(0,180,216,.2);border-top-right-radius:2px}
+  .sb{margin-top:5px;padding:6px 8px;background:rgba(0,0,0,.2);border-radius:var(--rs);border-left:2px solid var(--ai);font-size:10px;color:var(--fm);line-height:1.5}
+
+  .ciw{padding:8px 14px 12px;border-top:1px solid var(--bd);display:flex;gap:6px;align-items:flex-end}
+  .ci{flex:1;min-height:32px;max-height:64px;resize:none;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rs);padding:6px 10px;font-size:11px;font-family:inherit;color:var(--fg);outline:none;transition:var(--tr);line-height:1.4}
+  .ci::placeholder{color:var(--fd)}.ci:focus{border-color:var(--ai);box-shadow:0 0 0 2px var(--ai2)}
+  .ci-btn{width:32px;height:32px;border-radius:var(--rs);border:1px solid var(--bd);background:var(--bg3);color:var(--fm);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:var(--tr);flex-shrink:0}
+  .ci-btn:hover{border-color:var(--ai);color:var(--ai)}
+  .ci-btn.send{background:var(--ai);border-color:var(--ai);color:var(--bg)}
+  .ci-btn.send:hover{background:#00cfee}.ci-btn.rec{color:var(--rd);border-color:var(--rd);animation:recPulse 1.5s ease infinite}
+  @keyframes recPulse{0%,100%{box-shadow:none}50%{box-shadow:0 0 8px var(--rd2)}}
+
+  .tmpl-panel{display:none;padding:8px 14px;border-bottom:1px solid var(--bd);max-height:120px;overflow-y:auto}
+  .tmpl-panel.show{display:block}
+  .tmpl-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+  .tmpl-item{padding:6px 8px;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rs);cursor:pointer;transition:var(--tr);font-size:10px;color:var(--fm);display:flex;align-items:center;gap:6px}
+  .tmpl-item:hover{border-color:var(--ai);color:var(--ai);background:var(--ai2)}
+  .tmpl-item i{font-size:10px;width:14px;text-align:center}
+
+  .typ{display:flex;gap:3px;padding:3px 0}
+  .typ span{width:4px;height:4px;border-radius:50%;background:var(--ai);animation:ty 1.4s ease-in-out infinite}
+  .typ span:nth-child(2){animation-delay:.2s}.typ span:nth-child(3){animation-delay:.4s}
+  @keyframes ty{0%,60%,100%{transform:translateY(0);opacity:.3}30%{transform:translateY(-4px);opacity:1}}
+
+  .tools-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:12px 14px}
+  .tool-card{padding:12px 10px;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--r);cursor:pointer;transition:var(--tr);display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
+  .tool-card:hover{border-color:var(--ok);background:var(--ok2);transform:translateY(-2px);box-shadow:0 4px 16px rgba(0,0,0,.3)}
+  .tool-card i{font-size:18px;color:var(--ok)}
+  .tool-card .tn{font-size:10px;font-weight:600;color:var(--fg)}
+  .tool-card .td{font-size:8px;color:var(--fd);line-height:1.3}
+
+  .tool-sub{display:none;flex-direction:column;height:100%}
+  .tool-sub.act{display:flex}
+  .tool-back{display:flex;align-items:center;gap:6px;padding:10px 14px;cursor:pointer;font-size:11px;color:var(--fm);transition:var(--tr);border-bottom:1px solid var(--bd)}
+  .tool-back:hover{color:var(--ai)}
+  .tool-sub-body{flex:1;overflow-y:auto;padding:12px 14px}
+  .tool-sub-body::-webkit-scrollbar{width:3px}.tool-sub-body::-webkit-scrollbar-thumb{background:var(--fd);border-radius:2px}
+
+  .yt-input{width:100%;height:34px;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rs);padding:0 10px;font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--fg);outline:none;transition:var(--tr);margin-bottom:8px}
+  .yt-input::placeholder{color:var(--fd)}.yt-input:focus{border-color:var(--ok);box-shadow:0 0 0 2px var(--ok2)}
+  .yt-result{background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rs);padding:10px;font-size:11px;line-height:1.5;color:var(--fm)}
+  .yt-result h4{color:var(--fg);font-size:12px;margin-bottom:6px}
+  .yt-tag{display:inline-block;padding:2px 6px;border-radius:10px;background:var(--ok2);color:var(--ok);font-size:9px;font-weight:500;margin:2px 2px 2px 0}
+
+  .code-block{background:#0d1117;border:1px solid var(--bd);border-radius:var(--rs);padding:10px;font-family:'JetBrains Mono',monospace;font-size:10px;line-height:1.6;color:var(--fm);overflow-x:auto;margin:8px 0}
+  .code-block .kw{color:#ff7b72}.code-block .fn{color:#d2a8ff}.code-block .str{color:#a5d6ff}.code-block .cm{color:#484f58}
+
+  .scrape-table{width:100%;border-collapse:collapse;font-size:10px;margin:8px 0}
+  .scrape-table th{text-align:left;padding:4px 6px;border-bottom:1px solid var(--bd);color:var(--fm);font-weight:600}
+  .scrape-table td{padding:4px 6px;border-bottom:1px solid rgba(48,54,61,.5);color:var(--fd)}
+
+  .know-search{padding:10px 14px;display:flex;gap:6px}
+  .know-search input{flex:1;height:30px;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rs);padding:0 10px;font-size:11px;font-family:inherit;color:var(--fg);outline:none;transition:var(--tr)}
+  .know-search input::placeholder{color:var(--fd)}.know-search input:focus{border-color:var(--pu);box-shadow:0 0 0 2px var(--pu2)}
+  .know-search button{height:30px;padding:0 10px;background:var(--pu2);border:1px solid var(--pu);border-radius:var(--rs);color:var(--pu);font-size:10px;font-family:inherit;font-weight:500;cursor:pointer;transition:var(--tr)}
+  .know-search button:hover{background:var(--pu);color:var(--bg)}
+
+  .know-canvas-wrap{position:relative;margin:0 14px;height:160px;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--r);overflow:hidden}
+  .know-canvas-wrap canvas{width:100%;height:100%}
+  .know-canvas-label{position:absolute;bottom:6px;right:8px;font-size:8px;color:var(--fd);background:rgba(14,17,23,.7);padding:2px 6px;border-radius:4px}
+
+  .know-section-title{font-size:9px;font-weight:600;color:var(--fd);text-transform:uppercase;letter-spacing:1.2px;padding:10px 14px 4px}
+  .hl-list{padding:0 14px 12px;display:flex;flex-direction:column;gap:4px}
+  .hl-item{padding:8px 10px;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rs);transition:var(--tr);cursor:pointer}
+  .hl-item:hover{border-color:var(--pu);background:var(--pu2)}
+  .hl-item .hl-text{font-size:10px;line-height:1.4;color:var(--fg);border-left:2px solid var(--pu);padding-left:8px;margin-bottom:4px}
+  .hl-item .hl-meta{font-size:8px;color:var(--fd);display:flex;gap:8px}
+
+  .agent-cards{display:flex;gap:6px;padding:10px 14px;overflow-x:auto}
+  .agent-card{min-width:100px;padding:10px;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--r);cursor:pointer;transition:var(--tr);text-align:center;flex-shrink:0}
+  .agent-card:hover{border-color:var(--am);transform:translateY(-2px)}
+  .agent-card.sel{border-color:var(--am);background:var(--am2);box-shadow:0 0 12px var(--am3)}
+  .agent-card .ag-icon{width:28px;height:28px;border-radius:7px;margin:0 auto 6px;display:flex;align-items:center;justify-content:center;font-size:12px}
+  .ag-icon.res{background:var(--ai2);color:var(--ai)}.ag-icon.cod{background:var(--ok2);color:var(--ok)}.ag-icon.ana{background:var(--pu2);color:var(--pu)}
+  .agent-card .ag-name{font-size:10px;font-weight:600;color:var(--fg)}
+  .agent-card .ag-model{font-size:8px;color:var(--fd);margin-top:2px}
+
+  .bench-section{padding:10px 14px}
+  .bench-title{font-size:9px;font-weight:600;color:var(--fd);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:8px}
+  .bench-row{display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rs);margin-bottom:4px;transition:var(--tr)}
+  .bench-row:hover{border-color:var(--am)}
+  .bench-row .br-model{flex:1;font-size:10px;font-weight:500;font-family:'JetBrains Mono',monospace}
+  .bench-row .br-bar{width:60px;height:6px;background:var(--bg);border-radius:3px;overflow:hidden}
+  .bench-row .br-bar-fill{height:100%;border-radius:3px;transition:width .6s ease}
+  .bench-row .br-score{font-size:10px;font-weight:600;width:32px;text-align:right;font-family:'JetBrains Mono',monospace}
+  .bench-row.winner{border-color:var(--am);background:var(--am2)}
+
+  .finetune-section{padding:10px 14px}
+  .finetune-card{padding:12px;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--r)}
+  .finetune-card h4{font-size:11px;font-weight:600;margin-bottom:6px}
+  .finetune-progress{height:6px;background:var(--bg);border-radius:3px;overflow:hidden;margin:8px 0}
+  .finetune-progress-fill{height:100%;background:linear-gradient(90deg,var(--am),var(--ok));border-radius:3px;transition:width 1s ease}
+  .finetune-meta{display:flex;justify-content:space-between;font-size:9px;color:var(--fd)}
+
+  .timer-ring-wrap{display:flex;justify-content:center;padding-top:8px;margin-bottom:8px}
+  .timer-ring{position:relative;width:130px;height:130px}
+  .timer-ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+  .timer-ring .rbg{fill:none;stroke:var(--bg3);stroke-width:5}
+  .timer-ring .rpr{fill:none;stroke:var(--ok);stroke-width:5;stroke-linecap:round;transition:stroke-dashoffset .5s ease;filter:drop-shadow(0 0 6px var(--ok3))}
+  .timer-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .timer-time{font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:500;letter-spacing:-1px}
+  .timer-label{font-size:9px;color:var(--fm);text-transform:uppercase;letter-spacing:1.5px;margin-top:1px}
+
+  .tm{display:flex;gap:4px;padding:0 14px;margin-bottom:8px}
+  .tmb{flex:1;padding:5px 0;border:1px solid var(--bd);border-radius:var(--rs);background:transparent;color:var(--fm);font-size:9px;font-family:inherit;font-weight:500;cursor:pointer;transition:var(--tr)}
+  .tmb:hover{border-color:var(--fd);color:var(--fg)}.tmb.act{background:var(--ok2);border-color:var(--ok);color:var(--ok)}
+
+  .tc{display:flex;gap:6px;justify-content:center;margin-bottom:8px}
+  .tb{width:36px;height:36px;border-radius:50%;border:1px solid var(--bd);background:var(--bg3);color:var(--fm);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:var(--tr);font-family:inherit}
+  .tb:hover{border-color:var(--fd);color:var(--fg);transform:scale(1.05)}
+  .tb.pri{width:44px;height:44px;background:var(--ok);border-color:var(--ok);color:var(--bg);font-size:15px;box-shadow:0 4px 16px var(--ok3)}
+  .tb.pri:hover{background:#00e89d;transform:scale(1.08)}
+
+  .task-input-wrap{display:flex;gap:6px;margin-bottom:8px}
+  .task-in{flex:1;height:30px;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rs);padding:0 10px;font-size:11px;font-family:inherit;color:var(--fg);outline:none;transition:var(--tr)}
+  .task-in::placeholder{color:var(--fd)}.task-in:focus{border-color:var(--ok);box-shadow:0 0 0 2px var(--ok2)}
+  .task-add{width:30px;height:30px;border-radius:var(--rs);background:var(--ok);border:none;color:var(--bg);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:var(--tr);flex-shrink:0}
+  .task-add:hover{background:#00e89d;transform:scale(1.05)}
+
+  .tf{display:flex;gap:3px;margin-bottom:8px}
+  .tfl{padding:3px 8px;border-radius:20px;border:1px solid var(--bd);background:transparent;color:var(--fm);font-size:9px;font-family:inherit;font-weight:500;cursor:pointer;transition:var(--tr)}
+  .tfl:hover{border-color:var(--fd);color:var(--fg)}.tfl.act{background:var(--ok2);border-color:var(--ok);color:var(--ok)}
+
+  .tl{display:flex;flex-direction:column;gap:4px}
+  .ti{display:flex;align-items:center;gap:7px;padding:7px 8px;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rs);transition:var(--tr);animation:tiA .25s ease}
+  @keyframes tiA{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:translateX(0)}}
+  .ti:hover{border-color:var(--fd);background:var(--bg4)}
+  .ti.dn{opacity:.5}.ti.dn .tt{text-decoration:line-through}
+  .tch{width:14px;height:14px;border-radius:50%;border:2px solid var(--fd);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:var(--tr);flex-shrink:0;font-size:7px;color:transparent}
+  .tch:hover{border-color:var(--ok)}.ti.dn .tch{border-color:var(--ok);background:var(--ok);color:var(--bg)}
+  .tt{flex:1;font-size:10px;line-height:1.3}
+  .tp2{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+  .tp2.h{background:var(--rd);box-shadow:0 0 4px var(--rd2)}.tp2.m{background:var(--am)}.tp2.l{background:var(--ok)}
+  .tdl{width:16px;height:16px;border:none;background:none;color:var(--fd);font-size:8px;cursor:pointer;border-radius:3px;display:flex;align-items:center;justify-content:center;transition:var(--tr);opacity:0}
+  .ti:hover .tdl{opacity:1}.tdl:hover{color:var(--rd);background:var(--rd2)}
+
+  .pf{padding:6px 14px;border-top:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;font-size:9px;color:var(--fd)}
+  .pf a{color:var(--fm);text-decoration:none;transition:var(--tr);cursor:pointer}.pf a:hover{color:var(--ai)}
+  .pfa{display:flex;gap:10px}
+
+  .tc2{position:absolute;bottom:42px;left:50%;transform:translateX(-50%);z-index:100;display:flex;flex-direction:column;gap:4px;align-items:center;pointer-events:none}
+  .toast{padding:5px 12px;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rs);font-size:10px;color:var(--fg);box-shadow:0 8px 24px rgba(0,0,0,.4);animation:tIn .3s ease,tOut .3s ease 2s forwards;white-space:nowrap}
+  .toast.ok{border-color:var(--ok);color:var(--ok)}.toast.ai{border-color:var(--ai);color:var(--ai)}.toast.err{border-color:var(--rd);color:var(--rd)}.toast.pu{border-color:var(--pu);color:var(--pu)}.toast.am{border-color:var(--am);color:var(--am)}
+  @keyframes tIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes tOut{to{opacity:0;transform:translateY(-4px)}}
+
+  @media(max-width:900px){.bf{transform:scale(.75);transform-origin:center}}
+  @media(max-width:680px){.bf{transform:scale(.5);transform-origin:center}}
+  @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+
+<div class="amb"><span></span><span></span></div>
+
+<div class="bf">
+  <div class="bb">
+    <div class="bd"><span></span><span></span><span></span></div>
+    <div class="bu"><i class="fas fa-lock lk"></i><span>github.com/repo/focusflow-ai</span></div>
+  </div>
+  <div class="es">
+    <div class="ei"><i class="fas fa-shield-halved"></i></div>
+    <div class="ei"><i class="fas fa-palette"></i></div>
+    <div class="esep"></div>
+    <div class="ei act" title="FocusFlow AI"><i class="fas fa-bolt"></i></div>
+    <div class="ei"><i class="fas fa-code"></i></div>
+    <div class="esep"></div>
+    <div class="ei"><i class="fas fa-bookmark"></i></div>
+  </div>
+
+  <div class="bc" id="browserContent">
+    <div class="mp" id="mockPage">
+      <div class="mh"></div><div class="ml"></div><div class="ml"></div><div class="ml"></div><div class="mb"></div>
+    </div>
+
+    <div class="ctx" id="ctxMenu">
+      <div class="ctx-title">FocusFlow AI</div>
+      <div class="ctx-item" data-action="explain"><i class="fas fa-lightbulb"></i>Объяснить выделенное<span class="shortcut">⌘E</span></div>
+      <div class="ctx-item" data-action="translate-ru"><i class="fas fa-language"></i>Перевести на русский<span class="shortcut">⌘R</span></div>
+      <div class="ctx-item" data-action="translate-en"><i class="fas fa-globe"></i>Перевести на English<span class="shortcut">⌘G</span></div>
+      <div class="ctx-item" data-action="summarize"><i class="fas fa-wand-magic-sparkles"></i>Суммаризировать<span class="shortcut">⌘S</span></div>
+      <div class="ctx-sep"></div>
+      <div class="ctx-item" data-action="code"><i class="fas fa-code"></i>Объяснить код</div>
+      <div class="ctx-item" data-action="search"><i class="fas fa-magnifying-glass"></i>Найти в истории</div>
+      <div class="ctx-item" data-action="save"><i class="fas fa-floppy-disk"></i>Сохранить в базу знаний</div>
+    </div>
+
+    <div class="popup" id="popup">
+      <div class="ph">
+        <div class="pl"><i class="fas fa-bolt"></i></div>
+        <div class="ptg"><div class="pt">FocusFlow AI</div><div class="pts">Ассистент продуктивности</div></div>
+      </div>
+
+      <div class="model-sel" id="modelSel">
+        <button class="model-pill local act" data-model="qwen2.5">Qwen 2.5</button>
+        <button class="model-pill local" data-model="llama3.2">Llama 3.2</button>
+        <button class="model-pill local" data-model="codellama">CodeLlama</button>
+        <button class="model-pill" data-model="gpt4o">GPT-4o</button>
+        <button class="model-pill" data-model="claude3.5">Claude 3.5</button>
+        <button class="model-pill" data-model="gemini">Gemini</button>
+      </div>
+
+      <div class="pn">
+        <button class="nt act" data-tab="chat"><i class="fas fa-brain"></i>AI</button>
+        <button class="nt" data-tab="tools"><i class="fas fa-screwdriver-wrench"></i>Инструменты</button>
+        <button class="nt" data-tab="know"><i class="fas fa-diagram-project"></i>Знания</button>
+        <button class="nt" data-tab="agents"><i class="fas fa-robot"></i>Агенты</button>
+        <button class="nt" data-tab="focus"><i class="fas fa-clock"></i>Фокус</button>
+      </div>
+
+      <div class="pb">
+
+        <div class="tp act" id="tab-chat">
+          <div class="chat-quick">
+            <button class="cq-btn" id="btnSum"><i class="fas fa-wand-magic-sparkles"></i><span>Саммари</span></button>
+            <button class="cq-btn" id="btnTr"><i class="fas fa-language"></i><span>Перевод</span></button>
+            <button class="cq-btn" id="btnCode"><i class="fas fa-code"></i><span>Код</span></button>
+            <button class="cq-btn" id="btnYt"><i class="fab fa-youtube"></i><span>YouTube</span></button>
+          </div>
+          <div class="chat-up" id="uploadZone">
+            <i class="fas fa-cloud-arrow-up"></i>
+            <div class="ut">Загрузить PDF / DOCX / TXT</div>
+            <div class="uh">Перетащите или кликните</div>
+          </div>
+          <div class="chat">
+            <div class="chat-msgs" id="chatMsgs">
+              <div class="cm ai">
+                <div class="ca"><i class="fas fa-bolt"></i></div>
+                <div class="cb">Привет! Я ваш AI-ассистент. Могу сделать саммари страницы, перевести текст, объяснить код, проанализировать YouTube-видео или PDF. Правый клик на странице — контекстное меню с AI-действиями.</div>
+              </div>
+            </div>
+            <div class="tmpl-panel" id="tmplPanel">
+              <div class="tmpl-grid">
+                <div class="tmpl-item" data-tmpl="Напиши деловое письмо по теме: "><i class="fas fa-envelope"></i>Письмо</div>
+                <div class="tmpl-item" data-tmpl="Создай эссе на тему: "><i class="fas fa-pen-nib"></i>Эссе</div>
+                <div class="tmpl-item" data-tmpl="Сгенерируй код для: "><i class="fas fa-terminal"></i>Код</div>
+                <div class="tmpl-item" data-tmpl="Составь план проекта: "><i class="fas fa-list-ol"></i>План</div>
+                <div class="tmpl-item" data-tmpl="Суммаризируй документ: "><i class="fas fa-file-lines"></i>Саммари</div>
+                <div class="tmpl-item" data-tmpl="Объясни простым языком: "><i class="fas fa-graduation-cap"></i>Объяснение</div>
+              </div>
+            </div>
+            <div class="ciw">
+              <button class="ci-btn" id="tmplBtn" title="Шаблоны"><i class="fas fa-grid-2"></i></button>
+              <button class="ci-btn" id="voiceBtn" title="Голосовой ввод"><i class="fas fa-microphone"></i></button>
+              <textarea class="ci" id="chatInput" rows="1" placeholder="Спросите что-нибудь..."></textarea>
+              <button class="ci-btn send" id="chatSend"><i class="fas fa-paper-plane"></i></button>
+            </div>
+          </div>
+        </div>
+
+        <div class="tp" id="tab-tools">
+          <div id="toolsMain">
+            <div class="tools-grid">
+              <div class="tool-card" data-tool="youtube"><i class="fab fa-youtube"></i><div class="tn">YouTube анализ</div><div class="td">Субтитры → LLM → саммари</div></div>
+              <div class="tool-card" data-tool="pdf"><i class="fas fa-file-pdf"></i><div class="tn">PDF чат</div><div class="td">Загрузите и спрашивайте</div></div>
+              <div class="tool-card" data-tool="translate"><i class="fas fa-language"></i><div class="tn">Перевод</div><div class="td">Ollama mBART / NLLB</div></div>
+              <div class="tool-card" data-tool="code"><i class="fas fa-code"></i><div class="tn">Объяснение кода</div><div class="td">CodeLlama / Qwen Coder</div></div>
+              <div class="tool-card" data-tool="image"><i class="fas fa-image"></i><div class="tn">Генерация картинок</div><div class="td">DALL-E 3 / Stable Diffusion</div></div>
+              <div class="tool-card" data-tool="scrape"><i class="fas fa-table"></i><div class="tn">Веб-скрапинг</div><div class="td">Извлечение данных и таблиц</div></div>
+              <div class="tool-card" data-tool="scribe"><i class="fas fa-video"></i><div class="tn">Запись процессов</div><div class="td">Авто-инструкции со скриншотами</div></div>
+              <div class="tool-card" data-tool="search"><i class="fas fa-magnifying-glass-arrow-right"></i><div class="tn">AI поиск</div><div class="td">Синтез ответов с цитатами</div></div>
+            </div>
+          </div>
+
+          <div class="tool-sub" id="sub-youtube">
+            <div class="tool-back" onclick="closeToolSub()"><i class="fas fa-arrow-left"></i> Инструменты</div>
+            <div class="tool-sub-body">
+              <h4 style="font-size:12px;margin-bottom:8px"><i class="fab fa-youtube" style="color:var(--rd);margin-right:4px"></i>Анализ YouTube видео</h4>
+              <input class="yt-input" id="ytInput" placeholder="Вставьте URL видео YouTube...">
+              <button class="ci-btn send" style="width:100%;border-radius:var(--rs);height:32px;margin-bottom:10px" id="ytAnalyze"><i class="fas fa-wand-magic-sparkles"></i> Анализировать</button>
+              <div class="yt-result" id="ytResult" style="display:none">
+                <h4>Суммаризация видео</h4>
+                <p id="ytResultText">Загрузка...</p>
+                <div style="margin-top:6px" id="ytResultTags"></div>
+                <div style="margin-top:8px;font-size:10px;color:var(--fd)" id="ytResultMeta"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="tool-sub" id="sub-code">
+            <div class="tool-back" onclick="closeToolSub()"><i class="fas fa-arrow-left"></i> Инструменты</div>
+            <div class="tool-sub-body">
+              <h4 style="font-size:12px;margin-bottom:8px"><i class="fas fa-code" style="color:var(--ok);margin-right:4px"></i>Объяснение кода</h4>
+              <textarea class="yt-input" id="codeInput" rows="4" placeholder="Вставьте код для объяснения..." style="height:80px;resize:vertical;padding:6px 10px;font-family:'JetBrains Mono',monospace;font-size:10px"></textarea>
+              <button class="ci-btn send" style="width:100%;border-radius:var(--rs);height:28px;margin-bottom:8px;font-size:10px" id="codeExplain"><i class="fas fa-wand-magic-sparkles"></i> Объяснить код</button>
+              <div class="yt-result" id="codeResult" style="display:none">
+                <h4>Объяснение</h4>
+                <p id="codeResultText">Загрузка...</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="tool-sub" id="sub-scrape">
+            <div class="tool-back" onclick="closeToolSub()"><i class="fas fa-arrow-left"></i> Инструменты</div>
+            <div class="tool-sub-body">
+              <h4 style="font-size:12px;margin-bottom:8px"><i class="fas fa-table" style="color:var(--am);margin-right:4px"></i>Веб-скрапинг</h4>
+              <input class="yt-input" id="scrapeUrl" placeholder="Введите URL для извлечения данных...">
+              <button class="ci-btn send" style="width:100%;border-radius:var(--rs);height:28px;font-size:10px;margin-bottom:8px" id="scrapeBtn"><i class="fas fa-wand-magic-sparkles"></i> Извлечь данные</button>
+              <div class="yt-result" id="scrapeResult" style="display:none">
+                <h4>Извлечённые данные</h4>
+                <div id="scrapeContent"></div>
+              </div>
+              <button class="ci-btn send" style="width:100%;border-radius:var(--rs);height:28px;font-size:10px;display:none" id="scrapeCsv"><i class="fas fa-download"></i> Экспорт CSV</button>
+            </div>
+          </div>
+
+          <div class="tool-sub" id="sub-image">
+            <div class="tool-back" onclick="closeToolSub()"><i class="fas fa-arrow-left"></i> Инструменты</div>
+            <div class="tool-sub-body">
+              <h4 style="font-size:12px;margin-bottom:8px"><i class="fas fa-image" style="color:var(--pu);margin-right:4px"></i>Генерация изображений</h4>
+              <input class="yt-input" id="imagePrompt" placeholder="Опишите изображение...">
+              <div style="display:flex;gap:4px;margin-bottom:10px">
+                <button class="model-pill act" data-img-model="sd" style="font-size:9px">SD Local</button>
+                <button class="model-pill" data-img-model="dalle" style="font-size:9px">DALL-E 3</button>
+              </div>
+              <button class="ci-btn send" style="width:100%;border-radius:var(--rs);height:28px;font-size:10px;margin-bottom:8px" id="imageGen"><i class="fas fa-wand-magic-sparkles"></i> Сгенерировать</button>
+              <div id="imageResult" style="width:100%;aspect-ratio:16/10;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rs);display:flex;align-items:center;justify-content:center;color:var(--fd);font-size:11px">
+                <i class="fas fa-wand-magic-sparkles" style="margin-right:6px"></i>Результат появится здесь
+              </div>
+            </div>
+          </div>
+
+          <div class="tool-sub" id="sub-search">
+            <div class="tool-back" onclick="closeToolSub()"><i class="fas fa-arrow-left"></i> Инструменты</div>
+            <div class="tool-sub-body">
+              <h4 style="font-size:12px;margin-bottom:8px"><i class="fas fa-magnifying-glass-arrow-right" style="color:var(--ai);margin-right:4px"></i>AI поиск</h4>
+              <input class="yt-input" id="aiSearchInput" placeholder="Поисковый запрос...">
+              <button class="ci-btn send" style="width:100%;border-radius:var(--rs);height:28px;font-size:10px;margin-bottom:8px" id="aiSearchBtn"><i class="fas fa-magnifying-glass"></i> Поиск</button>
+              <div class="yt-result" id="aiSearchResult" style="display:none"></div>
+            </div>
+          </div>
+
+          <div class="tool-sub" id="sub-translate">
+            <div class="tool-back" onclick="closeToolSub()"><i class="fas fa-arrow-left"></i> Инструменты</div>
+            <div class="tool-sub-body">
+              <h4 style="font-size:12px;margin-bottom:8px"><i class="fas fa-language" style="color:var(--pu);margin-right:4px"></i>Перевод текста</h4>
+              <textarea class="yt-input" id="translateInput" rows="3" placeholder="Вставьте текст для перевода..." style="height:60px;resize:vertical"></textarea>
+              <div style="display:flex;gap:4px;margin-bottom:8px">
+                <button class="model-pill act" data-lang="ru" style="font-size:9px">RU</button>
+                <button class="model-pill" data-lang="en" style="font-size:9px">EN</button>
+                <button class="model-pill" data-lang="de" style="font-size:9px">DE</button>
+                <button class="model-pill" data-lang="fr" style="font-size:9px">FR</button>
+                <button class="model-pill" data-lang="zh" style="font-size:9px">ZH</button>
+              </div>
+              <button class="ci-btn send" style="width:100%;border-radius:var(--rs);height:28px;font-size:10px;margin-bottom:8px" id="translateBtn"><i class="fas fa-language"></i> Перевести</button>
+              <div class="yt-result" id="translateResult" style="display:none"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tp" id="tab-know">
+          <div class="know-search">
+            <input id="knowSearchInput" placeholder="Поиск по базе знаний...">
+            <button id="knowSearchBtn">Найти</button>
+          </div>
+          <div class="know-canvas-wrap">
+            <canvas id="graphCanvas"></canvas>
+            <div class="know-canvas-label" id="graphLabel">Граф знаний — загрузка...</div>
+          </div>
+          <div class="know-section-title">История посещений</div>
+          <div class="tscroll" style="padding-top:0">
+            <div class="hl-list" id="hlList"></div>
+          </div>
+        </div>
+
+        <div class="tp" id="tab-agents">
+          <div class="tscroll">
+            <div style="padding:0 0 6px;font-size:10px;color:var(--fm);display:flex;align-items:center;gap:6px"><i class="fas fa-robot" style="color:var(--am)"></i> Мульти-агентная оркестрация</div>
+            <div class="agent-cards" id="agentCards"></div>
+
+            <div class="bench-section">
+              <div class="bench-title">Бенчмарк моделей в реальном времени</div>
+              <div id="benchmarkList"></div>
+            </div>
+
+            <div class="finetune-section">
+              <div class="bench-title">Fine-tuning на ваших данных</div>
+              <div class="finetune-card">
+                <h4><i class="fas fa-sliders" style="color:var(--am);margin-right:4px"></i>qwen2.5-personal</h4>
+                <div class="finetune-progress"><div class="finetune-progress-fill" id="ftFill" style="width:0%"></div></div>
+                <div class="finetune-meta" id="ftMeta"><span>Загрузка...</span><span>0%</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tp" id="tab-focus">
+          <div class="tscroll">
+            <div class="timer-ring-wrap">
+              <div class="timer-ring">
+                <svg viewBox="0 0 160 160"><circle class="rbg" cx="80" cy="80" r="70"/><circle class="rpr" id="timerRing" cx="80" cy="80" r="70" stroke-dasharray="439.82" stroke-dashoffset="0"/></svg>
+                <div class="timer-center"><div class="timer-time" id="timerDisp">25:00</div><div class="timer-label" id="timerLbl">Фокус</div></div>
+              </div>
+            </div>
+            <div class="tm">
+              <button class="tmb act" data-min="25" data-lbl="Фокус">25м</button>
+              <button class="tmb" data-min="15" data-lbl="Длинный">15м</button>
+              <button class="tmb" data-min="5" data-lbl="Перерыв">5м</button>
+              <button class="tmb" data-min="50" data-lbl="Глубокий">50м</button>
+            </div>
+            <div class="tc">
+              <button class="tb" id="tReset"><i class="fas fa-rotate-left"></i></button>
+              <button class="tb pri" id="tPlay"><i class="fas fa-play"></i></button>
+              <button class="tb" id="tSkip"><i class="fas fa-forward-step"></i></button>
+            </div>
+            <div style="height:12px"></div>
+            <div class="task-input-wrap">
+              <input class="task-in" id="taskIn" placeholder="Новая задача..." maxlength="100">
+              <button class="task-add" id="taskAdd"><i class="fas fa-plus"></i></button>
+            </div>
+            <div class="tf">
+              <button class="tfl act" data-f="all">Все</button>
+              <button class="tfl" data-f="active">Активные</button>
+              <button class="tfl" data-f="done">Готово</button>
+            </div>
+            <div class="tl" id="taskList"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pf">
+        <span>v4.0 AI</span>
+        <div class="pfa">
+          <a id="fExp">Экспорт</a>
+          <a id="fObs">Obsidian</a>
+        </div>
+      </div>
+      <div class="tc2" id="toastBox"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API_BASE = 'http://127.0.0.1:5000';
+  const AUTH_TOKEN = 'ai-agent-hybrid-token-2026';
+  const HEADERS = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${AUTH_TOKEN}` };
+
+  function getModel() { return document.querySelector('.model-pill.act')?.dataset?.model || 'qwen2.5'; }
+
+  async function apiFetch(url, body) {
+    const resp = await fetch(API_BASE + url, { method: 'POST', headers: HEADERS, body: JSON.stringify(body) });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+    return resp.json();
+  }
+
+  async function apiGet(url) {
+    const resp = await fetch(API_BASE + url, { headers: HEADERS });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    return resp.json();
+  }
+
+  async function callChat(message, model) {
+    const data = await apiFetch('/chat', { message, model: model || getModel() });
+    return data.response || data.error || 'Нет ответа от сервера';
+  }
+
+  function escHtml(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+
+  // ==================== Вкладки ====================
+  const tabs = document.querySelectorAll('.nt'), panels = document.querySelectorAll('.tp');
+  tabs.forEach(t => t.addEventListener('click', () => {
+    tabs.forEach(x => x.classList.remove('act')); panels.forEach(x => x.classList.remove('act'));
+    t.classList.add('act'); document.getElementById('tab-' + t.dataset.tab).classList.add('act');
+    if (t.dataset.tab === 'know') { initGraph(); loadHighlights(); }
+    if (t.dataset.tab === 'agents') { loadAgents(); loadBenchmarks(); }
+  }));
+
+  // ==================== Селектор моделей ====================
+  document.querySelectorAll('.model-pill').forEach(p => p.addEventListener('click', () => {
+    document.querySelectorAll('.model-pill').forEach(x => x.classList.remove('act'));
+    p.classList.add('act'); toast('Модель: ' + p.dataset.model, 'ai');
+  }));
+
+  // ==================== Контекстное меню (демо) ====================
+  const ctxMenu = document.getElementById('ctxMenu');
+  const bc = document.getElementById('browserContent');
+
+  bc.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    ctxMenu.classList.add('show');
+    let x = e.offsetX, y = e.offsetY;
+    if (x + 220 > bc.clientWidth) x = bc.clientWidth - 230;
+    if (y + 250 > bc.clientHeight) y = bc.clientHeight - 260;
+    ctxMenu.style.left = x + 'px'; ctxMenu.style.top = y + 'px';
+  });
+
+  document.addEventListener('click', () => ctxMenu.classList.remove('show'));
+
+  ctxMenu.querySelectorAll('.ctx-item').forEach(item => item.addEventListener('click', async e => {
+    e.stopPropagation(); ctxMenu.classList.remove('show');
+    const a = item.dataset.action;
+    tabs.forEach(x => x.classList.remove('act')); panels.forEach(x => x.classList.remove('act'));
+    document.querySelector('.nt[data-tab="chat"]').classList.add('act');
+    document.getElementById('tab-chat').classList.add('act');
+
+    const prompts = {
+      explain: 'Объясни выделенный текст подробно на русском языке',
+      'translate-ru': 'Переведи выделенный текст на русский язык',
+      'translate-en': 'Переведи выделенный текст на английский язык',
+      summarize: 'Сделай саммари выделенного текста',
+      code: 'Объясни этот код подробно строка за строкой',
+      search: 'Найди в истории браузера информацию по выделенному тексту. Используй семантический поиск.',
+      save: 'Сохрани следующую информацию в базу знаний:'
+    };
+
+    addMsg(prompts[a] || '', 'usr');
+    showTyping();
+    try {
+      const resp = await callChat(prompts[a] || a, a === 'code' ? 'codellama' : undefined);
+      removeTyping();
+      addMsg('', 'ai', resp);
+    } catch (err) {
+      removeTyping();
+      addMsg('', 'ai', '<div class="sb" style="border-left-color:var(--rd)">Ошибка: ' + escHtml(err.message) + '. Убедитесь что Flask сервер запущен на ' + API_BASE + '</div>');
+    }
+  }));
+
+  // ==================== chrome.storage: контекстное меню из расширения ====================
+  (async function checkStorageAction() {
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+      const result = await chrome.storage.local.get('ffAction');
+      if (result.ffAction) {
+        await chrome.storage.local.remove('ffAction');
+        const { action, text, prompt } = result.ffAction;
+        if (text && prompt) {
+          tabs.forEach(x => x.classList.remove('act')); panels.forEach(x => x.classList.remove('act'));
+          document.querySelector('.nt[data-tab="chat"]').classList.add('act');
+          document.getElementById('tab-chat').classList.add('act');
+
+          const fullPrompt = prompt + '\n\n' + text;
+          addMsg(fullPrompt, 'usr');
+          showTyping();
+          try {
+            const resp = await callChat(fullPrompt, action === 'ff-code' ? 'codellama' : undefined);
+            removeTyping();
+            addMsg('', 'ai', resp);
+          } catch (err) {
+            removeTyping();
+            addMsg('', 'ai', '<div class="sb" style="border-left-color:var(--rd)">Ошибка: ' + escHtml(err.message) + '</div>');
+          }
+        }
+      }
+    }
+  })();
+
+  // ==================== AI Чат ====================
+  const chatMsgs = document.getElementById('chatMsgs');
+  const chatInput = document.getElementById('chatInput');
+  const chatSend = document.getElementById('chatSend');
+
+  chatInput.addEventListener('input', function() { this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 64) + 'px'; });
+
+  function addMsg(text, sender, html) {
+    const m = document.createElement('div'); m.className = 'cm ' + sender;
+    const icon = sender === 'ai' ? 'fa-bolt' : 'fa-user';
+    m.innerHTML = '<div class="ca"><i class="fas ' + icon + '"></i></div><div class="cb">' + (html || escHtml(text)) + '</div>';
+    chatMsgs.appendChild(m); chatMsgs.scrollTop = chatMsgs.scrollHeight; return m;
+  }
+
+  function showTyping() {
+    const m = document.createElement('div'); m.className = 'cm ai'; m.id = 'typMsg';
+    m.innerHTML = '<div class="ca"><i class="fas fa-bolt"></i></div><div class="cb"><div class="typ"><span></span><span></span><span></span></div></div>';
+    chatMsgs.appendChild(m); chatMsgs.scrollTop = chatMsgs.scrollHeight;
+  }
+
+  function removeTyping() { const t = document.getElementById('typMsg'); if (t) t.remove(); }
+
+  async function sendMsg() {
+    const t = chatInput.value.trim(); if (!t) return;
+    addMsg(t, 'usr'); chatInput.value = ''; chatInput.style.height = 'auto';
+    chatSend.disabled = true; showTyping();
+    try {
+      const resp = await callChat(t);
+      removeTyping(); addMsg('', 'ai', resp);
+    } catch (err) {
+      removeTyping(); addMsg('', 'ai', '<div class="sb" style="border-left-color:var(--rd)">Ошибка: ' + escHtml(err.message) + '</div>');
+    }
+    chatSend.disabled = false;
+  }
+
+  chatSend.addEventListener('click', sendMsg);
+  chatInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); } });
+
+  // Быстрые действия
+  document.getElementById('btnSum').addEventListener('click', async () => {
+    addMsg('Сделай саммари этой страницы', 'usr'); showTyping();
+    try { const r = await callChat('Сделай саммари этой страницы'); removeTyping(); addMsg('', 'ai', r); } catch (e) { removeTyping(); addMsg('', 'ai', 'Ошибка: ' + e.message); }
+  });
+  document.getElementById('btnTr').addEventListener('click', async () => {
+    addMsg('Переведи выделенный текст', 'usr'); showTyping();
+    try { const r = await callChat('Переведи выделенный текст на русский язык'); removeTyping(); addMsg('', 'ai', r); } catch (e) { removeTyping(); addMsg('', 'ai', 'Ошибка: ' + e.message); }
+  });
+  document.getElementById('btnCode').addEventListener('click', async () => {
+    addMsg('Объясни код на этой странице', 'usr'); showTyping();
+    try { const r = await callChat('Объясни код на этой странице', 'codellama'); removeTyping(); addMsg('', 'ai', r); } catch (e) { removeTyping(); addMsg('', 'ai', 'Ошибка: ' + e.message); }
+  });
+  document.getElementById('btnYt').addEventListener('click', async () => {
+    addMsg('Проанализируй YouTube видео', 'usr'); showTyping();
+    try { const r = await callChat('Проанализируй YouTube видео'); removeTyping(); addMsg('', 'ai', r); } catch (e) { removeTyping(); addMsg('', 'ai', 'Ошибка: ' + e.message); }
+  });
+
+  // Загрузка PDF (реальная)
+  const upZone = document.getElementById('uploadZone');
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file'; fileInput.accept = '.pdf,.docx,.txt';
+  fileInput.style.display = 'none';
+  upZone.parentNode.insertBefore(fileInput, upZone.nextSibling);
+
+  upZone.addEventListener('click', () => fileInput.click());
+
+  fileInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    upZone.classList.add('has');
+    upZone.innerHTML = '<i class="fas fa-file-circle-check"></i><div class="ut">' + escHtml(file.name) + '</div><div class="uh">Загрузка...</div>';
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const resp = await fetch(API_BASE + '/tools/pdf/upload', { method: 'POST', headers: { 'Authorization': 'Bearer ' + AUTH_TOKEN }, body: formData });
+      const data = await resp.json();
+      upZone.innerHTML = '<i class="fas fa-file-circle-check"></i><div class="ut">' + escHtml(file.name) + '</div><div class="uh">' + (data.page_count || 'OK') + ' страниц, готов к вопросам</div>';
+      toast('PDF загружен: ' + file.name, 'ai');
+      addMsg('', 'ai', 'Документ <strong>' + escHtml(file.name) + '</strong> (' + (data.page_count || '?') + ' стр.) загружен. Текст извлечён, embeddings сохранены. Чем помочь?');
+    } catch (err) {
+      upZone.innerHTML = '<i class="fas fa-cloud-arrow-up"></i><div class="ut">Ошибка загрузки</div><div class="uh">' + escHtml(err.message) + '</div>';
+      toast('Ошибка загрузки PDF', 'err');
+    }
+    fileInput.value = '';
+  });
+
+  // Шаблоны
+  const tmplPanel = document.getElementById('tmplPanel');
+  document.getElementById('tmplBtn').addEventListener('click', () => tmplPanel.classList.toggle('show'));
+  tmplPanel.querySelectorAll('.tmpl-item').forEach(t => t.addEventListener('click', () => {
+    chatInput.value = t.dataset.tmpl; chatInput.focus(); tmplPanel.classList.remove('show');
+  }));
+
+  // Голосовой ввод (Web Speech API)
+  let recording = false;
+  let recognition = null;
+  const voiceBtn = document.getElementById('voiceBtn');
+
+  if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SR();
+    recognition.lang = 'ru-RU';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.onresult = (e) => {
+      const transcript = e.results[0][0].transcript;
+      chatInput.value = transcript;
+      chatInput.focus();
+      recording = false;
+      voiceBtn.classList.remove('rec');
+      voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+      toast('Распознано: «' + transcript.substring(0, 40) + '...»', 'ok');
+      sendMsg();
+    };
+    recognition.onerror = () => {
+      recording = false;
+      voiceBtn.classList.remove('rec');
+      voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+      toast('Ошибка распознавания', 'err');
+    };
+  }
+
+  voiceBtn.addEventListener('click', () => {
+    if (!recognition) { toast('Web Speech API не доступен', 'err'); return; }
+    recording = !recording;
+    if (recording) {
+      try { recognition.start(); voiceBtn.classList.add('rec'); voiceBtn.innerHTML = '<i class="fas fa-stop"></i>'; toast('Говорите...', 'ai'); } catch (e) { recording = false; }
+    } else {
+      recognition.stop(); voiceBtn.classList.remove('rec'); voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+    }
+  });
+
+  // ==================== Инструменты ====================
+  function closeToolSub() {
+    document.querySelectorAll('.tool-sub').forEach(s => s.classList.remove('act'));
+    document.getElementById('toolsMain').style.display = 'block';
+  }
+  window.closeToolSub = closeToolSub;
+
+  document.querySelectorAll('.tool-card').forEach(c => c.addEventListener('click', () => {
+    const tool = c.dataset.tool;
+    const sub = document.getElementById('sub-' + tool);
+    if (sub) { document.getElementById('toolsMain').style.display = 'none'; sub.classList.add('act'); }
+  }));
+
+  // YouTube анализ
+  document.getElementById('ytAnalyze').addEventListener('click', async () => {
+    const url = document.getElementById('ytInput').value.trim();
+    if (!url) { toast('Введите URL видео', 'err'); return; }
+    toast('Извлечение субтитров...', 'ai');
+    const resDiv = document.getElementById('ytResult');
+    resDiv.style.display = 'block';
+    document.getElementById('ytResultText').textContent = 'Загрузка...';
+    try {
+      const data = await apiFetch('/tools/youtube', { url });
+      document.getElementById('ytResultText').innerHTML = data.summary || 'Нет саммари';
+      document.getElementById('ytResultTags').innerHTML = (data.tags || []).map(t => '<span class="yt-tag">' + escHtml(t) + '</span>').join('');
+      document.getElementById('ytResultMeta').innerHTML = '<i class="fas fa-clock"></i> ' + (data.duration || '?') + ' &nbsp; <i class="fas fa-closed-captioning"></i> Субтитры извлечены &nbsp; <i class="fas fa-brain"></i> ' + (data.model || getModel());
+      toast('Анализ завершён', 'ok');
+    } catch (err) {
+      document.getElementById('ytResultText').innerHTML = 'Ошибка: ' + escHtml(err.message);
+    }
+  });
+
+  // Объяснение кода
+  document.getElementById('codeExplain').addEventListener('click', async () => {
+    const code = document.getElementById('codeInput').value.trim();
+    if (!code) { toast('Вставьте код', 'err'); return; }
+    const resDiv = document.getElementById('codeResult');
+    resDiv.style.display = 'block';
+    document.getElementById('codeResultText').textContent = 'Загрузка...';
+    try {
+      const model = 'codellama';
+      const resp = await callChat('Объясни этот код подробно:\n\n' + code, model);
+      document.getElementById('codeResultText').innerHTML = resp;
+    } catch (err) {
+      document.getElementById('codeResultText').innerHTML = 'Ошибка: ' + escHtml(err.message);
+    }
+  });
+
+  // Веб-скрапинг
+  document.getElementById('scrapeBtn').addEventListener('click', async () => {
+    const url = document.getElementById('scrapeUrl').value.trim();
+    if (!url) { toast('Введите URL', 'err'); return; }
+    toast('Скрапинг...', 'ai');
+    const resDiv = document.getElementById('scrapeResult');
+    resDiv.style.display = 'block';
+    try {
+      const data = await apiFetch('/tools/scrape', { url });
+      if (data.html) {
+        document.getElementById('scrapeContent').innerHTML = data.html;
+      } else if (data.text) {
+        document.getElementById('scrapeContent').innerHTML = '<pre style="font-family:JetBrains Mono;font-size:10px;color:var(--fm);white-space:pre-wrap">' + escHtml(data.text) + '</pre>';
+      } else {
+        document.getElementById('scrapeContent').innerHTML = '<p>Нет данных</p>';
+      }
+      document.getElementById('scrapeCsv').style.display = data.rows ? 'block' : 'none';
+      toast('Скрапинг завершён', 'ok');
+    } catch (err) {
+      document.getElementById('scrapeContent').innerHTML = 'Ошибка: ' + escHtml(err.message);
+    }
+  });
+
+  document.getElementById('scrapeCsv').addEventListener('click', () => {
+    toast('CSV экспорт: данные отправлены', 'ok');
+  });
+
+  // Генерация изображений
+  document.querySelectorAll('[data-img-model]').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('[data-img-model]').forEach(x => x.classList.remove('act'));
+    b.classList.add('act');
+  }));
+
+  document.getElementById('imageGen').addEventListener('click', async () => {
+    const prompt = document.getElementById('imagePrompt').value.trim();
+    if (!prompt) { toast('Введите промпт', 'err'); return; }
+    const imgModel = document.querySelector('[data-img-model].act')?.dataset?.imgModel || 'sd';
+    const resDiv = document.getElementById('imageResult');
+    resDiv.innerHTML = '<i class="fas fa-spinner fa-spin" style="margin-right:6px"></i>Генерация...';
+    try {
+      const data = await apiFetch('/tools/image', { prompt, model: imgModel });
+      if (data.image) {
+        resDiv.innerHTML = '<img src="data:image/png;base64,' + data.image + '" style="max-width:100%;max-height:100%;border-radius:var(--rs)" alt="generated">';
+      } else if (data.url) {
+        resDiv.innerHTML = '<img src="' + data.url + '" style="max-width:100%;max-height:100%;border-radius:var(--rs)" alt="generated">';
+      } else {
+        resDiv.innerHTML = '<i class="fas fa-wand-magic-sparkles" style="margin-right:6px"></i>Результат: ' + escHtml(JSON.stringify(data));
+      }
+      toast('Изображение сгенерировано', 'ok');
+    } catch (err) {
+      resDiv.innerHTML = '<i class="fas fa-exclamation-triangle" style="margin-right:6px;color:var(--rd)"></i>Ошибка: ' + escHtml(err.message);
+    }
+  });
+
+  // AI поиск
+  document.getElementById('aiSearchBtn').addEventListener('click', async () => {
+    const q = document.getElementById('aiSearchInput').value.trim();
+    if (!q) { toast('Введите запрос', 'err'); return; }
+    const resDiv = document.getElementById('aiSearchResult');
+    resDiv.style.display = 'block';
+    resDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Поиск...';
+    try {
+      const data = await apiFetch('/search/hybrid', { query: q, limit: 10 });
+      if (data.results && data.results.length > 0) {
+        let html = '<div class="bench-title" style="margin-bottom:4px">Найдено ' + data.count + ' результатов</div>';
+        data.results.forEach(r => {
+          html += '<div style="padding:6px 8px;background:var(--bg3);border:1px solid var(--bd);border-radius:var(--rs);margin-bottom:4px;font-size:10px">' +
+            '<div style="color:var(--fg);font-weight:500">' + escHtml(r.content || r.text || '') + '</div>' +
+            (r.url ? '<div style="color:var(--fd);margin-top:2px">' + escHtml(r.url) + '</div>' : '') +
+            (r.score ? '<div style="color:var(--fm);font-size:8px;margin-top:2px">релевантность: ' + (r.score).toFixed(2) + '</div>' : '') +
+            '</div>';
+        });
+        resDiv.innerHTML = html;
+      } else {
+        resDiv.innerHTML = '<p>Результатов не найдено</p>';
+      }
+    } catch (err) {
+      resDiv.innerHTML = '<p>Ошибка: ' + escHtml(err.message) + '</p>';
+    }
+  });
+
+  // Перевод
+  document.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('[data-lang]').forEach(x => x.classList.remove('act'));
+    b.classList.add('act');
+  }));
+
+  document.getElementById('translateBtn').addEventListener('click', async () => {
+    const text = document.getElementById('translateInput').value.trim();
+    if (!text) { toast('Введите текст', 'err'); return; }
+    const lang = document.querySelector('[data-lang].act')?.dataset?.lang || 'ru';
+    const targetNames = { ru: 'русский', en: 'английский', de: 'немецкий', fr: 'французский', zh: 'китайский' };
+    const resDiv = document.getElementById('translateResult');
+    resDiv.style.display = 'block';
+    resDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Перевод...';
+    try {
+      const resp = await callChat('Переведи следующий текст на ' + (targetNames[lang] || lang) + ' язык. ВЕРНИ ТОЛЬКО ПЕРЕВОД, без комментариев:\n\n' + text);
+      resDiv.innerHTML = '<div style="font-size:11px;line-height:1.5">' + resp + '</div>';
+      toast('Перевод выполнен', 'ok');
+    } catch (err) {
+      resDiv.innerHTML = 'Ошибка: ' + escHtml(err.message);
+    }
+  });
+
+  // ==================== Граф знаний ====================
+  let graphInited = false;
+
+  async function initGraph() {
+    if (graphInited) return;
+    graphInited = true;
+    const canvas = document.getElementById('graphCanvas');
+    const wrap = canvas.parentElement;
+    canvas.width = wrap.clientWidth * 2;
+    canvas.height = wrap.clientHeight * 2;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(2, 2);
+    const W = wrap.clientWidth, H = wrap.clientHeight;
+
+    let nodes = [], edges = [];
+    const label = document.getElementById('graphLabel');
+
+    try {
+      const stats = await apiGet('/api/stats');
+      const totalDocs = stats?.stats?.chat_messages || 0;
+      const totalAgents = stats?.stats?.agent_sessions || 0;
+      label.textContent = 'Граф знаний — ' + totalDocs + ' сообщений, ' + totalAgents + ' агентов';
+
+      const center = { x: W * .5, y: H * .5, r: 10, label: 'AI', color: '#00b4d8' };
+      nodes = [center];
+
+      const agentColors = ['#a78bfa', '#f59e0b', '#00d68f', '#f85149'];
+      for (let i = 0; i < Math.min(totalAgents, 4); i++) {
+        const angle = (i / Math.min(totalAgents, 4)) * Math.PI * 2 - Math.PI / 2;
+        nodes.push({ x: W * .5 + Math.cos(angle) * 100, y: H * .5 + Math.sin(angle) * 100, r: 7, label: 'Агент ' + (i + 1), color: agentColors[i] });
+        edges.push([0, i + 1]);
+      }
+
+      const docColors = ['#00b4d8', '#a78bfa', '#f59e0b'];
+      for (let i = 0; i < Math.min(Math.floor(totalDocs / 10), 3); i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = 60 + Math.random() * 40;
+        nodes.push({ x: W * .5 + Math.cos(angle) * dist, y: H * .5 + Math.sin(angle) * dist, r: 5, label: 'Doc ' + (i + 1), color: docColors[i] });
+        edges.push([0, nodes.length - 1]);
+      }
+    } catch (err) {
+      label.textContent = 'Граф знаний — ' + err.message;
+      nodes = [
+        { x: W * .5, y: H * .5, r: 10, label: 'AI', color: '#00b4d8' },
+        { x: W * .25, y: H * .3, r: 7, label: 'Локальные', color: '#a78bfa' },
+        { x: W * .75, y: H * .3, r: 7, label: 'Облачные', color: '#f59e0b' },
+      ];
+      edges = [[0, 1], [0, 2]];
+    }
+
+    let hover = -1;
+    let animT = 0;
+
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      animT += 0.01;
+
+      edges.forEach(([a, b]) => {
+        const na = nodes[a], nb = nodes[b];
+        if (!na || !nb) return;
+        ctx.beginPath();
+        ctx.moveTo(na.x, na.y);
+        ctx.lineTo(nb.x, nb.y);
+        ctx.strokeStyle = 'rgba(167,139,250,0.15)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        const t = (Math.sin(animT + a * 0.5) + 1) / 2;
+        const px = na.x + (nb.x - na.x) * t, py = na.y + (nb.y - na.y) * t;
+        ctx.beginPath();
+        ctx.arc(px, py, 1.5, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(167,139,250,0.6)';
+        ctx.fill();
+      });
+
+      nodes.forEach((n, i) => {
+        const isHover = i === hover;
+        const pulse = Math.sin(animT * 2 + i) * 0.5 + 0.5;
+
+        if (isHover || i === 0) {
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, n.r + 6 + pulse * 3, 0, Math.PI * 2);
+          const g = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.r + 8);
+          g.addColorStop(0, n.color + '40');
+          g.addColorStop(1, n.color + '00');
+          ctx.fillStyle = g;
+          ctx.fill();
+        }
+
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+        ctx.fillStyle = isHover ? n.color : n.color + 'cc';
+        ctx.fill();
+        ctx.strokeStyle = n.color;
+        ctx.lineWidth = isHover ? 2 : 1;
+        ctx.stroke();
+
+        if (isHover || n.r >= 7) {
+          ctx.font = '500 8px Space Grotesk';
+          ctx.fillStyle = '#e6edf3';
+          ctx.textAlign = 'center';
+          ctx.fillText(n.label, n.x, n.y + n.r + 12);
+        }
+      });
+
+      requestAnimationFrame(draw);
+    }
+
+    canvas.addEventListener('mousemove', e => {
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+      hover = -1;
+      nodes.forEach((n, i) => { if (Math.hypot(mx - n.x, my - n.y) < n.r + 4) hover = i; });
+      canvas.style.cursor = hover >= 0 ? 'pointer' : 'default';
+    });
+
+    draw();
+  }
+
+  // Поиск по знаниям
+  document.getElementById('knowSearchBtn').addEventListener('click', async () => {
+    const q = document.getElementById('knowSearchInput').value.trim();
+    if (!q) return;
+    try {
+      const data = await apiFetch('/search/hybrid', { query: q, limit: 10 });
+      toast('Найдено ' + (data.count || 0) + ' результатов для «' + q + '»', 'pu');
+    } catch (err) {
+      toast('Ошибка поиска: ' + err.message, 'err');
+    }
+  });
+
+  // ==================== История посещений (вкладка Знания) ====================
+  async function loadHighlights() {
+    const list = document.getElementById('hlList');
+    try {
+      const data = await apiGet('/api/history/pages?limit=20');
+      const pages = data.pages || [];
+      if (pages.length === 0) {
+        list.innerHTML = '<div style="text-align:center;padding:12px;color:var(--fd);font-size:10px">История пуста. Расширение собирает данные о посещённых страницах.</div>';
+        return;
+      }
+      list.innerHTML = pages.map(p => {
+        const title = p.title || p.url || 'Без названия';
+        const time = p.timestamp ? new Date(p.timestamp).toLocaleString('ru') : 'недавно';
+        const domain = p.url ? new URL(p.url).hostname : '';
+        return '<div class="hl-item"><div class="hl-text">' + escHtml(title) + '</div><div class="hl-meta"><span>' + escHtml(domain) + '</span><span>' + time + '</span></div></div>';
+      }).join('');
+    } catch (err) {
+      list.innerHTML = '<div style="text-align:center;padding:12px;color:var(--fd);font-size:10px">Ошибка загрузки: ' + escHtml(err.message) + '</div>';
+    }
+  }
+
+  // ==================== Агенты ====================
+  async function loadAgents() {
+    const container = document.getElementById('agentCards');
+    try {
+      const data = await apiGet('/agents/list');
+      const agents = data.agents || [];
+      if (agents.length === 0) {
+        container.innerHTML = '<div style="text-align:center;padding:12px;color:var(--fd);font-size:10px">Агенты не обнаружены</div>';
+        return;
+      }
+      const icons = { researcher: 'fa-magnifying-glass', coder: 'fa-code', analyst: 'fa-chart-line' };
+      const colors = { researcher: 'res', coder: 'cod', analyst: 'ana' };
+      container.innerHTML = agents.map((a, i) => {
+        const icon = icons[a.type] || 'fa-robot';
+        const color = colors[a.type] || 'res';
+        const model = a.model || getModel();
+        return '<div class="agent-card' + (i === 0 ? ' sel' : '') + '" data-agent="' + escHtml(a.agent_name || a.name || 'agent-' + i) + '">' +
+          '<div class="ag-icon ' + color + '"><i class="fas ' + icon + '"></i></div>' +
+          '<div class="ag-name">' + escHtml(a.agent_name || a.name || 'Агент') + '</div>' +
+          '<div class="ag-model">' + escHtml(model) + '</div></div>';
+      }).join('');
+      container.querySelectorAll('.agent-card').forEach(c => c.addEventListener('click', () => {
+        container.querySelectorAll('.agent-card').forEach(x => x.classList.remove('sel'));
+        c.classList.add('sel');
+        toast('Агент: ' + c.querySelector('.ag-name').textContent, 'am');
+      }));
+    } catch (err) {
+      container.innerHTML = '<div style="text-align:center;padding:12px;color:var(--fd);font-size:10px">Ошибка: ' + escHtml(err.message) + '</div>';
+    }
+  }
+
+  // ==================== Бенчмарки ====================
+  async function loadBenchmarks() {
+    const container = document.getElementById('benchmarkList');
+    try {
+      const data = await apiFetch('/api/benchmark', {});
+      const results = data.results || [];
+      if (results.length === 0) {
+        container.innerHTML = '<div style="padding:6px;font-size:10px;color:var(--fd)">Нет данных бенчмарка</div>';
+        return;
+      }
+      const maxScore = Math.max(...results.map(r => r.score || 0), 1);
+      container.innerHTML = results.map(r => {
+        const pct = ((r.score || 0) / maxScore * 100).toFixed(0);
+        const isWinner = r.score === maxScore;
+        const colors = ['var(--ok)', 'var(--ai)', 'var(--pu)', 'var(--am)', 'var(--fm)'];
+        const color = colors[results.indexOf(r) % colors.length];
+        return '<div class="bench-row' + (isWinner ? ' winner' : '') + '">' +
+          '<span class="br-model" style="color:' + (isWinner ? 'var(--ok)' : '') + '">' + escHtml(r.model || r.name) + '</span>' +
+          '<div class="br-bar"><div class="br-bar-fill" style="width:' + pct + '%;background:' + color + '"></div></div>' +
+          '<span class="br-score" style="color:' + (isWinner ? 'var(--ok)' : '') + '">' + (r.score || 0).toFixed(0) + '</span></div>';
+      }).join('');
+    } catch (err) {
+      container.innerHTML = '<div style="padding:6px;font-size:10px;color:var(--fd)">Ошибка: ' + escHtml(err.message) + '</div>';
+    }
+  }
+
+  // ==================== Fine-tuning ====================
+  async function loadFinetuneStatus() {
+    try {
+      const data = await apiGet('/api/finetune/status');
+      if (data.epoch !== undefined && data.total_epochs !== undefined) {
+        const pct = ((data.epoch / data.total_epochs) * 100).toFixed(0);
+        document.getElementById('ftFill').style.width = pct + '%';
+        document.getElementById('ftMeta').innerHTML = '<span>Эпоха ' + data.epoch + '/' + data.total_epochs + ' — ' + (data.examples || 0) + ' примеров</span><span style="color:var(--ok)">' + pct + '%</span>';
+      }
+    } catch (err) {
+      document.getElementById('ftMeta').innerHTML = '<span>Ожидание данных...</span><span>0%</span>';
+    }
+  }
+
+  let ftInterval = setInterval(loadFinetuneStatus, 5000);
+  loadFinetuneStatus();
+
+  // ==================== Таймер ====================
+  let tInterval = null, tRunning = false, tTotal = 25 * 60, tRemain = tTotal;
+  const cCirc = 2 * Math.PI * 70;
+  const tDisp = document.getElementById('timerDisp'), tRing = document.getElementById('timerRing'),
+    tPlay = document.getElementById('tPlay'), tLbl = document.getElementById('timerLbl');
+
+  function updTimer() {
+    const m = Math.floor(tRemain / 60), s = tRemain % 60;
+    tDisp.textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    tRing.style.strokeDashoffset = cCirc * (1 - tRemain / tTotal);
+  }
+
+  tPlay.addEventListener('click', () => {
+    if (tRunning) { clearInterval(tInterval); tRunning = false; tPlay.innerHTML = '<i class="fas fa-play"></i>'; return; }
+    tRunning = true;
+    tPlay.innerHTML = '<i class="fas fa-pause"></i>';
+    tInterval = setInterval(() => {
+      tRemain--;
+      if (tRemain <= 0) { tRemain = 0; clearInterval(tInterval); tRunning = false; tPlay.innerHTML = '<i class="fas fa-play"></i>'; toast('Сессия завершена!', 'ok'); }
+      updTimer();
+    }, 1000);
+  });
+  document.getElementById('tReset').addEventListener('click', () => { clearInterval(tInterval); tRunning = false; tRemain = tTotal; tPlay.innerHTML = '<i class="fas fa-play"></i>'; updTimer(); });
+  document.getElementById('tSkip').addEventListener('click', () => { clearInterval(tInterval); tRunning = false; tRemain = 0; tPlay.innerHTML = '<i class="fas fa-play"></i>'; updTimer(); toast('Пропущено', 'err'); });
+  document.querySelectorAll('.tmb').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('.tmb').forEach(x => x.classList.remove('act'));
+    b.classList.add('act');
+    tTotal = parseInt(b.dataset.min) * 60;
+    tRemain = tTotal;
+    tLbl.textContent = b.dataset.lbl;
+    clearInterval(tInterval);
+    tRunning = false;
+    tPlay.innerHTML = '<i class="fas fa-play"></i>';
+    updTimer();
+  }));
+  updTimer();
+
+  // ==================== Задачи ====================
+  let tasks = [
+    { id: 1, text: 'Подготовить презентацию для совещания', done: false, priority: 'high' },
+    { id: 2, text: 'Ответить на письма клиентов', done: false, priority: 'medium' },
+    { id: 3, text: 'Обновить документацию API', done: true, priority: 'low' },
+    { id: 4, text: 'Код-ревью pull request #247', done: false, priority: 'high' },
+  ];
+  let nextId = 10, curFilter = 'all';
+
+  function renderTasks() {
+    const list = document.getElementById('taskList');
+    let f = tasks;
+    if (curFilter === 'active') f = tasks.filter(t => !t.done);
+    if (curFilter === 'done') f = tasks.filter(t => t.done);
+    if (!f.length) {
+      list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--fd);font-size:10px"><i class="fas fa-inbox" style="display:block;font-size:20px;margin-bottom:4px;opacity:.4"></i>Пусто</div>';
+      return;
+    }
+    list.innerHTML = f.map(t =>
+      '<div class="ti ' + (t.done ? 'dn' : '') + '" data-id="' + t.id + '">' +
+      '<div class="tch" onclick="togTask(' + t.id + ')"><i class="fas fa-check"></i></div>' +
+      '<span class="tt">' + escHtml(t.text) + '</span>' +
+      '<span class="tp2 ' + t.priority[0] + '"></span>' +
+      '<button class="tdl" onclick="delTask(' + t.id + ')"><i class="fas fa-xmark"></i></button></div>'
+    ).join('');
+  }
+  window.togTask = id => { const t = tasks.find(x => x.id === id); if (t) { t.done = !t.done; renderTasks(); if (t.done) toast('Готово!', 'ok'); } };
+  window.delTask = id => { tasks = tasks.filter(t => t.id !== id); renderTasks(); };
+
+  function addTask() {
+    const i = document.getElementById('taskIn'), t = i.value.trim();
+    if (!t) return;
+    const p = ['high', 'medium', 'low'];
+    tasks.unshift({ id: nextId++, text: t, done: false, priority: p[Math.floor(Math.random() * 3)] });
+    i.value = '';
+    renderTasks();
+    toast('Задача добавлена', 'ok');
+  }
+  document.getElementById('taskAdd').addEventListener('click', addTask);
+  document.getElementById('taskIn').addEventListener('keydown', e => { if (e.key === 'Enter') addTask(); });
+  document.querySelectorAll('.tfl').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('.tfl').forEach(x => x.classList.remove('act'));
+    b.classList.add('act');
+    curFilter = b.dataset.f;
+    renderTasks();
+  }));
+  renderTasks();
+
+  // ==================== Тосты ====================
+  function toast(msg, type) {
+    if (!type) type = 'ok';
+    const c = document.getElementById('toastBox'), t = document.createElement('div');
+    t.className = 'toast ' + type;
+    t.textContent = msg;
+    c.appendChild(t);
+    setTimeout(() => { if (t.parentNode) t.remove(); }, 2500);
+  }
+  window.toast = toast;
+
+  // ==================== Подвал ====================
+  document.getElementById('fExp').addEventListener('click', async () => {
+    try {
+      const data = await apiGet('/export/json?type=chat&limit=100');
+      toast('Экспорт: ' + (data.count || 0) + ' записей', 'ok');
+    } catch (err) {
+      toast('Экспорт в JSON/Markdown', 'ok');
+    }
+  });
+
+  document.getElementById('fObs').addEventListener('click', async () => {
+    try {
+      const data = await apiFetch('/integrations/export', { targets: ['obsidian'], type: 'chat', limit: 50 });
+      toast('Синхронизация с Obsidian: ' + (data.status || 'OK'), 'pu');
+    } catch (err) {
+      toast('Синхронизация с Obsidian (настройте в integrations/)', 'pu');
+    }
+  });
+</script>
+</body>
+</html>

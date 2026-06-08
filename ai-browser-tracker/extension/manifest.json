@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "FocusFlow AI",
+  "version": "4.0.0",
+  "description": "AI-ассистент продуктивности: суммаризация, перевод, код, агенты, граф знаний, фокус-таймер",
+  "permissions": [
+    "tabs", "webNavigation", "webRequest", "storage", "alarms",
+    "contextMenus", "scripting", "clipboardWrite"
+  ],
+  "host_permissions": ["<all_urls>"],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [{
+    "matches": ["<all_urls>"],
+    "js": ["content.js"],
+    "run_at": "document_idle"
+  }],
+  "commands": {
+    "ff-explain": {
+      "suggested_key": { "default": "Ctrl+Shift+E", "mac": "Command+Shift+E" },
+      "description": "Объяснить выделенное"
+    },
+    "ff-translate-ru": {
+      "suggested_key": { "default": "Ctrl+Shift+R", "mac": "Command+Shift+R" },
+      "description": "Перевести на русский"
+    },
+    "ff-summarize": {
+      "suggested_key": { "default": "Ctrl+Shift+S", "mac": "Command+Shift+S" },
+      "description": "Суммаризировать"
+    },
+    "ff-translate-en": {
+      "suggested_key": { "default": "Ctrl+Shift+G", "mac": "Command+Shift+G" },
+      "description": "Перевести на English"
+    }
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {"16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png"}
+  },
+  "icons": {"16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png"}
+}

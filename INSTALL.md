@@ -148,6 +148,12 @@ SEARCH_ASYNC_TIMEOUT=5.0
 # ────────────── Redis (опц.) ──────────────
 REDIS_DSN=redis://127.0.0.1:6379/0
 
+# ────────────── Browser History (AI Browser Tracker) ──────────────
+HYBRID_BROWSER_HISTORY_ENABLED=false
+HYBRID_BROWSER_HISTORY_URL=http://127.0.0.1:5000
+HYBRID_BROWSER_HISTORY_TOKEN=ai-agent-hybrid-token-2026
+HYBRID_BROWSER_HISTORY_TIMEOUT=5
+
 # ────────────── Ollama (опц., local LLM) ──────────────
 OLLAMA_ENABLED=false
 OLLAMA_BASE_URI=http://localhost:11434
@@ -201,10 +207,10 @@ make ci          # полный pipeline
 ### 6.2. Ожидаемый результат
 
 ```
-PHPUnit   : OK (52 tests, 105 assertions, 1 skipped)
+PHPUnit   : OK (380 tests, 963 assertions, 2 skipped)
 PHPCS     : 0 errors, 0 warnings
 PHPStan   : [OK] No errors
-verify.php: Pass: 74, Fail: 0, Skip: 3
+verify.php: Pass: 81, Fail: 0, Skip: 3
 ```
 
 ### 6.3. Запуск отдельного теста
@@ -401,10 +407,10 @@ make ci
 
 | Ворота | Ожидаемый результат |
 |--------|---------------------|
-| `make test` | `OK (372 tests, 951 assertions, 2 skipped)` |
+| `make test` | `OK (380 tests, 963 assertions, 2 skipped)` |
 | `make style` | `0 errors, 0 warnings` |
 | `make analyse` | `[OK] No errors` |
-| `make verify` | `Pass: 74, Fail: 0, Skip: 3` |
+| `make verify` | `Pass: 81, Fail: 0, Skip: 3` |
 
 ---
 
@@ -435,6 +441,9 @@ curl -H "Authorization: Bearer dev-token" http://127.0.0.1:8080/admin/health
 
 # Admin routes
 curl -H "Authorization: Bearer dev-token" http://127.0.0.1:8080/admin/routes
+
+# Browser history (требуется запущенный AI Browser Tracker)
+curl -H "Authorization: Bearer sgw_xxx" "http://127.0.0.1:8080/v1/browser/history?q=php+8.4"
 ```
 
 ### 12.3. Создание API-ключа
@@ -457,6 +466,12 @@ routes:
     action: searchWeb
     requiredScopes: [search:web]
     rateLimit: {limit: 100, window: 60}
+  - name: v1.browser.history
+    method: GET
+    path: /v1/browser/history
+    action: searchWeb
+    requiredScopes: [browser:history]
+    rateLimit: {limit: 60, window: 60}
 ```
 
 Затем в коде:
@@ -497,7 +512,49 @@ $app->run();
 
 ---
 
-## 13. Дальнейшие шаги
+## 13. AI Browser Tracker (Browser History Gateway)
+
+AI Browser Tracker — это companion-проект на Python, который сохраняет историю браузера
+в DuckDB с векторными индексами Zvec + NeuG и отдаёт её через Flask API.
+
+### 13.1. Быстрый запуск (Python)
+
+```bash
+cd ai-browser-tracker/server
+pip install -r requirements.txt
+python server.py
+# Flask сервер запущен на http://127.0.0.1:5000
+```
+
+### 13.2. Запуск через Docker
+
+```bash
+cd ai-browser-tracker
+docker-compose up --build
+# Redis :6379, Ollama :11434, Flask :5000
+```
+
+### 13.3. Проверка
+
+```bash
+curl http://127.0.0.1:5000/api/stats
+# {"status": "ok", "total_docs": 0, "total_graphs": 0}
+```
+
+После запуска Flask сервера `HybridBrowserHistoryGateway` в Search Gateway
+сможет обрабатывать запросы к `GET /v1/browser/history`.
+
+### 13.4. Chrome Extension
+
+Расширение для Chrome находится в `ai-browser-tracker/extension/`:
+1. Откройте `chrome://extensions`
+2. Включите «Режим разработчика»
+3. «Загрузить распакованное расширение» → выберите `ai-browser-tracker/extension/`
+4. Расширение начнёт отправлять историю посещений на `http://localhost:5000`
+
+---
+
+## 14. Дальнейшие шаги
 
 - Прочитайте [README.md](README.md) — обзор архитектуры и API
 - Прочитайте [docs/UNIVERSAL_API.md](docs/UNIVERSAL_API.md) — полная документация Universal API

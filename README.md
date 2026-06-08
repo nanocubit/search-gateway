@@ -16,22 +16,23 @@
 
 | Gate | Result |
 |------|--------|
-| PHPUnit 11 | **372 passed / 0 failed / 2 skipped** (951 assertions) |
+| PHPUnit 11 | **380 passed / 0 failed / 2 skipped** (963 assertions) |
 | PHPCS PSR-12 (lineLimit 140) | **0 errors / 0 warnings** |
 | PHPStan level 9 | **0 errors** |
-| Standalone `tools/ci-verify.php` (no vendor) | **74 passed / 0 failed / 3 skipped** |
+| Standalone `tools/ci-verify.php` (no vendor) | **81 passed / 0 failed / 3 skipped** |
 | Test matrix | PHP 8.2 / 8.3 / 8.4 × dependency mode lowest / highest |
 | PHP | 8.2+ (tested on 8.2.31 NTS x64) |
 
-The Universal API adds **~150 new tests** on top of the existing 107 library tests. The 2 SKIPs are multi-worker integration checks exercised in production only.
+The Universal API adds **~155 new tests** on top of the existing 107 library tests. The 2 SKIPs are multi-worker integration checks exercised in production only.
 
-**372 tests by domain**:
+**380 tests by domain**:
 - 10 — AdaptiveRetriever (Retrieval)
 - 12 — CrossEncoderReranker (Reranker)
 - 21 — SearchGuardrails (Guardrails)
 - 12 — KnowledgeGraphExtractor (Graph)
 - 52 — existing library (resilience, decorators, gateways, builder, tools, agents, ranker, prompt, formatter, LLM)
-- **~150 — Universal API** (router, API keys, plugins, middleware, controllers, admin, portal, streaming, observability, request DTOs)
+- 52 — Gateways (Brave, Mock, HybridBrowserHistory)
+- **~155 — Universal API** (router, API keys, plugins, middleware, controllers, admin, portal, streaming, observability, request DTOs, browser history route)
 
 ---
 
@@ -574,14 +575,14 @@ copy these files or `Mockery`-mock the `LLMClientInterface` /
 
 ## Provider Matrix
 
-| Feature | Yandex | Brave | Perplexity | Bing |
-|---------|--------|-------|------------|------|
-| `searchWeb` | ✅ | ✅ | ✅* | ✅ |
-| `searchNews` | ✅ | ✅ | ✅* | ✅ |
-| `searchImages` | ✅ | ✅ | ❌ | ✅ |
-| `searchGen` | ✅ | ❌ | ✅ | ❌ |
-| `wordstat` | ✅ | ❌ | ❌ | ❌ |
-| `llmContext` | ✅ | ✅ | ✅ | ✅ |
+| Feature | Yandex | Brave | Perplexity | Bing | HybridBrowserHistory |
+|---------|--------|-------|------------|------|----------------------|
+| `searchWeb` | ✅ | ✅ | ✅* | ✅ | ✅ |
+| `searchNews` | ✅ | ✅ | ✅* | ✅ | ❌ |
+| `searchImages` | ✅ | ✅ | ❌ | ✅ | ❌ |
+| `searchGen` | ✅ | ❌ | ✅ | ❌ | ❌ |
+| `wordstat` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `llmContext` | ✅ | ✅ | ✅ | ✅ | ❌ |
 
 *Perplexity synthesises from citations.
 
@@ -843,10 +844,11 @@ search-gateway/
 ├── README.md
 ├── tools/
 │   └── ci-verify.php          # Standalone smoke-test (no composer / no vendor)
+├── ai-browser-tracker/        # Companion: Python Flask + Chrome Extension + DuckDB/NeuG/Zvec
 ├── src/
 │   ├── Contract/              # Interfaces, DTOs, Exceptions
 │   ├── Infrastructure/        # HTTP, Cache, Metrics, Logger, LLM, RateLimiter, EventBus, Async, Streaming, Redis adapters
-│   ├── Gateway/               # Brave, Bing, Perplexity, YandexCloud, Mock
+│   ├── Gateway/               # Brave, Bing, Perplexity, YandexCloud, Mock, HybridBrowserHistory
 │   ├── Decorator/             # 9 cross-cutting decorators (see table above)
 │   ├── Tool/                  # SearchTool, MultiSearchGateway, AsyncMultiSearchGateway, FunctionTool, ToolRegistry
 │   ├── Builder/               # GatewayBuilder (fluent)
@@ -906,7 +908,17 @@ search-gateway/
     ├── basic.php
     ├── agent.php
     ├── builder.php
-    └── streaming.php
+    ├── builder_production.php
+    ├── concurrent_http.php
+    ├── ollama_chat.php
+    ├── ollama_streaming.php
+    ├── ranker_filter.php
+    ├── redis_circuit_breaker.php
+    ├── routes.json
+    ├── routes.yaml
+    ├── standalone-demo.php
+    ├── streaming.php
+    └── universal-api-quickstart.php
 ```
 
 ---
@@ -941,10 +953,10 @@ make ci          # install + analyse + style + test
 ### Expected output (release state)
 
 ```
-PHPUnit   : OK (372 tests, 951 assertions, 2 skipped)
+PHPUnit   : OK (380 tests, 963 assertions, 2 skipped)
 PHPCS     : 0 errors, 0 warnings
 PHPStan   : [OK] No errors
-verify.php: Pass: 74, Fail: 0, Skip: 3
+verify.php: Pass: 81, Fail: 0, Skip: 3
 ```
 
 The single PHPUnit skip is the multi-worker saturation test for the Redis circuit
@@ -1063,6 +1075,7 @@ The library ships a complete HTTP control plane on top of PSR-7 / PSR-15. See [d
 | `POST /v1/llm/context` | JSON | LLM context only |
 | `POST /v1/hybrid` | JSON | Search + LLM hybrid |
 | `POST /v1/wordstat` | JSON | Wordstat analytics |
+| `GET /v1/browser/history` | JSON | Browser history (via AI Browser Tracker) |
 | `POST /v1/stream/*` | SSE | Streaming responses |
 | `GET /docs` | HTML | Swagger UI |
 | `GET /docs/openapi.json` | JSON | OpenAPI 3.0.3 spec |
@@ -1140,9 +1153,32 @@ Supported formats: `routes.json`, `routes.yaml` (requires `symfony/yaml`), `rout
 - **Audit** — `InMemoryAuditLogger` / `FileAuditLogger` (atomic JSON-lines with `flock`)
 - **SearchAnalytics** — per-request events (query, provider, latency, status, route) → admin summary
 
+### Browser History Gateway
+
+The `HybridBrowserHistoryGateway` connects the Universal API to the [AI Browser Tracker 3.1](ai-browser-tracker/) — a companion Python project that stores and queries local browser history using DuckDB + Zvec + NeuG + Redis.
+
+```php
+use SearchGateway\Builder\GatewayBuilder;
+
+$gateway = (new GatewayBuilder())
+    ->addHybridBrowserHistory(
+        baseUrl: 'http://127.0.0.1:5000',
+        authToken: 'ai-agent-hybrid-token-2026',
+    )
+    ->build();
+```
+
+Register the route via `RoutePresets::browserHistory()` (already included in `RoutePresets::all()`):
+
+| Method | Path | Action | Scope | Rate limit |
+|--------|------|--------|-------|------------|
+| GET | `/v1/browser/history` | `searchWeb` | `browser:history` | 60 req/min |
+
+The gateway forwards `searchWeb()` calls to the AI Browser Tracker Flask server. Requires a running Python backend — see [`ai-browser-tracker/README.md`](ai-browser-tracker/README.md) for setup.
+
 ### Test coverage
 
-- **372 PHPUnit tests** / **951 assertions** (2 skipped)
+- **380 PHPUnit tests** / **963 assertions** (2 skipped)
 - **PHPStan level 9** clean
 - **PSR-12** compliant (lineLimit=140)
 

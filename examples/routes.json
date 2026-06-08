@@ -4,6 +4,7 @@
     {"name": "v1.search.news", "method": "POST", "path": "/v1/search/news", "action": "searchNews", "requiredScopes": ["search:news"]},
     {"name": "v1.search.gen", "method": "POST", "path": "/v1/search/gen", "action": "searchGen", "requiredScopes": ["llm:generate"], "rateLimit": {"limit": 30, "window": 60}},
     {"name": "v1.llm.context", "method": "POST", "path": "/v1/llm/context", "action": "llmContext", "requiredScopes": ["llm:context"]},
-    {"name": "v1.hybrid", "method": "POST", "path": "/v1/hybrid", "action": "hybrid", "requiredScopes": ["llm:hybrid"]}
+    {"name": "v1.hybrid", "method": "POST", "path": "/v1/hybrid", "action": "hybrid", "requiredScopes": ["llm:hybrid"]},
+    {"name": "v1.browser.history", "method": "GET", "path": "/v1/browser/history", "action": "searchWeb", "requiredScopes": ["browser:history"], "rateLimit": {"limit": 60, "window": 60}}
   ]
 }

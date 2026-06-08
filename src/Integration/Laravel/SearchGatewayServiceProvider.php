@@ -118,6 +118,14 @@ class SearchGatewayServiceProvider extends ServiceProvider
                 );
             }
 
+            if ($config['hybrid_browser_history']['enabled'] ?? false) {
+                $builder->addHybridBrowserHistory(
+                    baseUrl: $config['hybrid_browser_history']['base_url'],
+                    authToken: $config['hybrid_browser_history']['auth_token'],
+                    timeout: $config['hybrid_browser_history']['timeout'],
+                );
+            }
+
             if ($config['cache']['enabled'] ?? false) {
                 $builder->withCache(
                     $app->make(\SearchGateway\Infrastructure\CacheInterface::class),

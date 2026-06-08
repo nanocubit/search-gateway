@@ -12,6 +12,7 @@ use SearchGateway\Contract\SearchGatewayInterface;
 use SearchGateway\Controller\SearchGatewayController;
 use SearchGateway\Router\InMemoryRouteRegistry;
 use SearchGateway\Router\Route;
+use SearchGateway\Router\RoutePresets;
 use SearchGateway\Router\RouteResolver;
 
 final class SearchGatewayControllerTest extends TestCase
@@ -185,6 +186,25 @@ final class SearchGatewayControllerTest extends TestCase
         $payload = $body['payload'];
         self::assertIsArray($payload);
         self::assertSame('alt', $payload['answer']);
+    }
+
+    public function testDispatchesBrowserHistoryRouteViaPreset(): void
+    {
+        foreach (RoutePresets::browserHistory() as $route) {
+            $this->registry->register($route);
+        }
+        $controller = $this->makeController();
+        $request = $this->factory
+            ->createServerRequest('GET', '/v1/browser/history?q=test');
+
+        $response = $controller->handle($request);
+        $body = $this->json($response);
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertTrue($body['ok']);
+        self::assertSame('searchWeb', $body['action']);
+        self::assertIsArray($body['payload']);
+        self::assertCount(2, $body['payload']);
     }
 
     public function testReturns500WhenBuilderFails(): void

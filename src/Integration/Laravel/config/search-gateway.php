@@ -10,6 +10,12 @@ return [
         'api_key' => env('BRAVE_API_KEY', ''),
         'base_uri' => env('BRAVE_BASE_URI', 'https://api.search.brave.com/res/v1'),
     ],
+    'hybrid_browser_history' => [
+        'enabled' => env('HYBRID_BROWSER_HISTORY_ENABLED', false),
+        'base_url' => env('HYBRID_BROWSER_HISTORY_BASE_URL', 'http://127.0.0.1:5000'),
+        'auth_token' => env('HYBRID_BROWSER_HISTORY_AUTH_TOKEN', 'ai-agent-hybrid-token-2026'),
+        'timeout' => (int) env('HYBRID_BROWSER_HISTORY_TIMEOUT', 5),
+    ],
     'cache' => [
         'enabled' => env('SEARCH_CACHE_ENABLED', true),
         'ttl' => env('SEARCH_CACHE_TTL', 3600),

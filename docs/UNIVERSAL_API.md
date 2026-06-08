@@ -75,9 +75,10 @@ Routes are registered with `Route(name, method, path, action, ...)`. Built-in ac
 | `Route::ACTION_LLM_CONTEXT` | `POST /v1/llm/context` | LLM context only |
 | `Route::ACTION_HYBRID` | `POST /v1/hybrid` | Search + LLM hybrid |
 | `Route::ACTION_WORDSTAT` | `POST /v1/wordstat` | Wordstat analytics |
+| `Route::ACTION_SEARCH_WEB` | `GET /v1/browser/history` | Browser history (via `browserHistory()` preset) |
 | `stream` | `POST /v1/stream/*` | SSE streaming |
 
-Use `RoutePresets::all()` to register the full default set or pick a single group: `webSearch()`, `generative()`, `analytics()`, `streaming()`.
+Use `RoutePresets::all()` to register the full default set or pick a single group: `webSearch()`, `generative()`, `analytics()`, `streaming()`, `browserHistory()`.
 
 ## Configuration
 
@@ -316,4 +317,40 @@ $audit = new FileAuditLogger('/var/log/sgw/audit.log');
 - **PSR-15** — `psr/http-server-handler` (required), `psr/http-server-middleware` (dev)
 - **PSR-12** — code style (lineLimit=140)
 - **PHPStan level 9** — strict static analysis
-- **PHPUnit 11** — 372 tests, 951 assertions
+- **PHPUnit 11** — 379 tests, 958 assertions
+
+## Browser History Gateway
+
+`HybridBrowserHistoryGateway` connects the Universal API to the [AI Browser Tracker 3.1](ai-browser-tracker/) — a local Flask server that queries browser history via DuckDB + Zvec + NeuG.
+
+```php
+use SearchGateway\Builder\GatewayBuilder;
+use SearchGateway\Gateway\HybridBrowserHistoryGateway;
+
+$builder = new GatewayBuilder();
+$builder->addHybridBrowserHistory(
+    baseUrl: 'http://127.0.0.1:5000',
+    authToken: 'ai-agent-hybrid-token-2026',
+    timeout: 5,
+);
+```
+
+The route is registered via `RoutePresets::browserHistory()`:
+
+| Method | Path | Action | Scope |
+|--------|------|--------|-------|
+| GET | `/v1/browser/history` | `searchWeb` | `browser:history` |
+
+The gateway forwards `searchWeb()` calls to the AI Browser Tracker Flask server (`/search/similar`, `/search/hybrid`, `/api/stats`). News, images, and wordstat return empty arrays. An unreachable server throws `SearchGatewayException`.
+
+Configuration for Laravel:
+
+```php
+// config/search-gateway.php
+'hybrid_browser_history' => [
+    'enabled'    => env('HYBRID_BROWSER_HISTORY_ENABLED', false),
+    'base_url'   => env('HYBRID_BROWSER_HISTORY_URL', 'http://127.0.0.1:5000'),
+    'auth_token' => env('HYBRID_BROWSER_HISTORY_TOKEN', 'ai-agent-hybrid-token-2026'),
+    'timeout'    => (int) env('HYBRID_BROWSER_HISTORY_TIMEOUT', 5),
+],
+```

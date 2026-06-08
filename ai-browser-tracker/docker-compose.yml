@@ -1,0 +1,36 @@
+version: '3.8'
+services:
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+  ollama:
+    image: ollama/ollama
+    ports: ["11434:11434"]
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+  ollama-pull:
+    image: curlimages/curl:latest
+    depends_on:
+      ollama:
+        condition: service_healthy
+    entrypoint: >
+      sh -c "curl -sf http://ollama:11434/api/pull -d '{\"name\":\"qwen2.5:3b\"}' && echo 'Model ready'"
+    restart: "no"
+  app:
+    build: .
+    ports: ["5000:5000"]
+    depends_on: [redis, ollama]
+    volumes:
+      - ./data:/app/data
+    environment:
+      - SECRET_TOKEN=ai-agent-hybrid-token-2026
+      - REDIS_HOST=redis
+      - OLLAMA_URL=http://ollama:11434/api/generate
+      - OLLAMA_MODEL=qwen2.5:3b
+volumes:
+  ollama_data:

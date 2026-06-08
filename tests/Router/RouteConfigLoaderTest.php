@@ -183,7 +183,8 @@ final class RouteConfigLoaderTest extends TestCase
         $gen = count(RoutePresets::generative());
         $ana = count(RoutePresets::analytics());
         $str = count(RoutePresets::streaming());
-        self::assertSame($web + $gen + $ana + $str, count($all));
+        $bro = count(RoutePresets::browserHistory());
+        self::assertSame($web + $gen + $ana + $str + $bro, count($all));
     }
 
     public function testConfigFieldIsCarriedOver(): void

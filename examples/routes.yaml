@@ -46,3 +46,10 @@ routes:
     path: /v1/wordstat
     action: wordstat
     requiredScopes: [analytics:wordstat]
+
+  - name: v1.browser.history
+    method: GET
+    path: /v1/browser/history
+    action: searchWeb
+    requiredScopes: [browser:history]
+    rateLimit: {limit: 60, window: 60}

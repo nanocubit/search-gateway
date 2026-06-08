@@ -19,6 +19,7 @@ use SearchGateway\Decorator\MetricsSearchGatewayDecorator;
 use SearchGateway\Decorator\RateLimitedSearchGatewayDecorator;
 use SearchGateway\Decorator\RetryingSearchGatewayDecorator;
 use SearchGateway\Gateway\BraveSearchGateway;
+use SearchGateway\Gateway\HybridBrowserHistoryGateway;
 use SearchGateway\Gateway\YandexCloudSearchGateway;
 use SearchGateway\Infrastructure\CacheInterface;
 use SearchGateway\Infrastructure\GuzzleConcurrentHttpClient;
@@ -69,6 +70,15 @@ class GatewayBuilder
     public function addBrave(HttpClientInterface $http, string $apiKey, string $baseUri = 'https://api.search.brave.com/res/v1'): self
     {
         $this->providers[] = new BraveSearchGateway($http, $apiKey, $baseUri);
+        return $this;
+    }
+
+    public function addHybridBrowserHistory(
+        string $baseUrl = 'http://127.0.0.1:5000',
+        string $authToken = 'ai-agent-hybrid-token-2026',
+        int $timeout = 5,
+    ): self {
+        $this->providers[] = new HybridBrowserHistoryGateway($baseUrl, $authToken, $timeout);
         return $this;
     }
 

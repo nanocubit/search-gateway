@@ -115,6 +115,23 @@ final class RoutePresets
     /**
      * @return list<Route>
      */
+    public static function browserHistory(): array
+    {
+        return [
+            new Route(
+                name: 'v1.browser.history',
+                method: Route::METHOD_GET,
+                path: '/v1/browser/history',
+                action: Route::ACTION_SEARCH_WEB,
+                requiredScopes: ['browser:history'],
+                rateLimit: ['limit' => 60, 'window' => 60],
+            ),
+        ];
+    }
+
+    /**
+     * @return list<Route>
+     */
     public static function all(): array
     {
         return array_merge(
@@ -122,6 +139,7 @@ final class RoutePresets
             self::generative(),
             self::analytics(),
             self::streaming(),
+            self::browserHistory(),
         );
     }
 }

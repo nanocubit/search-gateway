@@ -1,0 +1,7 @@
+{
+  "name": "hybrid-ai-data-saver-extension",
+  "version": "3.1.0",
+  "private": true,
+  "scripts": { "test": "jest" },
+  "devDependencies": { "jest": "^29.7.0" }
+}

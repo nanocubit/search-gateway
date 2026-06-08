@@ -35,6 +35,7 @@ use SearchGateway\Decorator\LLMAnswerSearchGatewayDecorator;
 use SearchGateway\Decorator\RateLimitedSearchGatewayDecorator;
 use SearchGateway\Decorator\RetryingSearchGatewayDecorator;
 use SearchGateway\Formatter\ResponseFormatter;
+use SearchGateway\Gateway\HybridBrowserHistoryGateway;
 use SearchGateway\Gateway\MockSearchGateway;
 use SearchGateway\Infrastructure\CacheInterface;
 use SearchGateway\Infrastructure\HttpClientInterface;
@@ -707,6 +708,39 @@ $result = $agent->run('Test question');
 $check($extraSeen === 'extra-data', 'agent steps run and mutate context');
 $check($result === 'final', 'agent returns LLM answer as string');
 $check(str_contains($personal->enrich('q'), 'Language: ru'), 'personal context enriches queries with profile');
+
+// ---------------------------------------------------------------------------
+// Section: HybridBrowserHistoryGateway
+// ---------------------------------------------------------------------------
+
+$beginSection('HybridBrowserHistoryGateway');
+
+$historyDown = new HybridBrowserHistoryGateway('http://127.0.0.1:1', 'test', 1);
+try {
+    $historyDown->searchWeb('test');
+    $check(false, 'throws SearchGatewayException on unreachable server');
+} catch (SearchGatewayException) {
+    $check(true, 'throws SearchGatewayException on unreachable server');
+}
+
+$check($historyDown->searchNews('test') === [], 'searchNews returns empty');
+$check($historyDown->searchImages('test') === [], 'searchImages returns empty');
+$check($historyDown->wordstat('test') === [], 'wordstat returns empty');
+$check($historyDown->providerName() === 'hybrid-browser-history', 'providerName() returns hybrid-browser-history');
+
+try {
+    $historyDown->llmContext('test');
+    $check(false, 'llmContext throws on unreachable server');
+} catch (SearchGatewayException) {
+    $check(true, 'llmContext throws on unreachable server');
+}
+
+try {
+    $historyDown->searchGen('test');
+    $check(false, 'searchGen throws on unreachable server');
+} catch (SearchGatewayException) {
+    $check(true, 'searchGen throws on unreachable server');
+}
 
 // ---------------------------------------------------------------------------
 // Section: External-dep components
